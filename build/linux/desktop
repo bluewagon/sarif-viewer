@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=Sastafras
+Comment=Review and annotate findings from SARIF files
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/sastafras %u
+Terminal=false
+Type=Application
+Icon=sastafras
+Categories=Utility;
+StartupWMClass=sastafras
+
+ 

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MsixPackagingToolTemplate
+    xmlns="http://schemas.microsoft.com/msix/packaging/msixpackagingtool/template/2022">
+    <Settings
+        AllowTelemetry="false"
+        ApplyACLsToPackageFiles="true"
+        GenerateCommandLineFile="true"
+        AllowPromptForPassword="false">
+    </Settings>
+    <Installer
+        Path="sastafras"
+        Arguments=""
+        InstallLocation="C:\Program Files\Sastafras\Sastafras">
+    </Installer>
+    <PackageInformation
+        PackageName="app.sastafras.desktop"
+        PackageDisplayName="Sastafras"
+        PublisherName="CN=Sastafras"
+        PublisherDisplayName="Sastafras"
+        Version="0.1.0.0"
+        PackageDescription="Review and annotate findings from SARIF files">
+        <Capabilities>
+            <Capability Name="runFullTrust" />
+            
+        </Capabilities>
+        <Applications>
+            <Application
+                Id="app.sastafras.desktop"
+                Description="Review and annotate findings from SARIF files"
+                DisplayName="Sastafras"
+                ExecutableName="sastafras"
+                EntryPoint="Windows.FullTrustApplication">
+                
+            </Application>
+        </Applications>
+        <Resources>
+            <Resource Language="en-us" />
+        </Resources>
+        <Dependencies>
+            <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
+        </Dependencies>
+        <Properties>
+            <Framework>false</Framework>
+            <DisplayName>Sastafras</DisplayName>
+            <PublisherDisplayName>Sastafras</PublisherDisplayName>
+            <Description>Review and annotate findings from SARIF files</Description>
+            <Logo>Assets\AppIcon.png</Logo>
+        </Properties>
+    </PackageInformation>
+    <SaveLocation PackagePath="sastafras.msix" />
+    <PackageIntegrity>
+        <CertificatePath></CertificatePath>
+    </PackageIntegrity>
+</MsixPackagingToolTemplate>
