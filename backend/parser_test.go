@@ -22,7 +22,7 @@ func TestLoadSARIFValidation(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			path := writeTestFile(t, "input.sarif", test.content)
-			_, err := NewSARIFService().LoadSARIF(path)
+			_, err := NewSARIFService().LoadSARIF(path, SourceSelectionDTO{Kind: "none", ContextLines: 3})
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("LoadSARIF() error = %v, want substring %q", err, test.want)
 			}
@@ -77,7 +77,7 @@ func TestLoadSARIFNormalizesRunsRulesMessagesAndLocations(t *testing.T) {
   ]
 }`)
 
-	document, err := NewSARIFService().LoadSARIF(path)
+	document, err := NewSARIFService().LoadSARIF(path, SourceSelectionDTO{Kind: "none", ContextLines: 3})
 	if err != nil {
 		t.Fatalf("LoadSARIF() error = %v", err)
 	}

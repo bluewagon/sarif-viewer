@@ -32,6 +32,12 @@ export interface FindingReview {
     "reviewedAt": string;
 }
 
+export interface GitAuthenticationDTO {
+    "provider": string;
+    "username": string;
+    "personalAccessToken": string;
+}
+
 export interface LocationDTO {
     "uri": string;
     "startLine": number;
@@ -39,6 +45,9 @@ export interface LocationDTO {
     "endLine": number;
     "endColumn": number;
     "snippet": string;
+    "snippetStartLine": number;
+    "snippetOrigin": string;
+    "snippetStatus": string;
 }
 
 export interface RunSummaryDTO {
@@ -56,4 +65,18 @@ export interface SARIFDocumentDTO {
     "findingCount": number;
     "runs": RunSummaryDTO[] | null;
     "findings": FindingDTO[] | null;
+    "snippetSummary": SnippetSummaryDTO;
+}
+
+export interface SnippetSummaryDTO {
+    "generated": number;
+    "embedded": number;
+    "unavailable": number;
+}
+
+export interface SourceSelectionDTO {
+    "kind": string;
+    "location": string;
+    "contextLines": number;
+    "gitAuthentication": GitAuthenticationDTO;
 }

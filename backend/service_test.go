@@ -18,7 +18,7 @@ func TestExportSARIFMergesReviewsAndPreservesUnknownContent(t *testing.T) {
     "properties":{"owner":"security","sastafras":{"custom":"keep"}}
   }]}]
 }`)
-	document, err := service.LoadSARIF(source)
+	document, err := service.LoadSARIF(source, SourceSelectionDTO{Kind: "none", ContextLines: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestExportSARIFMergesReviewsAndPreservesUnknownContent(t *testing.T) {
 func TestExportSARIFValidation(t *testing.T) {
 	service := NewSARIFService()
 	source := writeTestFile(t, "source.sarif", `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Tool"}},"results":[{"message":{"text":"Finding"}}]}]}`)
-	document, err := service.LoadSARIF(source)
+	document, err := service.LoadSARIF(source, SourceSelectionDTO{Kind: "none", ContextLines: 3})
 	if err != nil {
 		t.Fatal(err)
 	}

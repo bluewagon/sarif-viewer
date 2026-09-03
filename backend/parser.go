@@ -200,19 +200,33 @@ func primaryLocation(run, result map[string]any) LocationDTO {
 	artifact, _ := objectValue(physical["artifactLocation"])
 	region, _ := objectValue(physical["region"])
 	snippet := messageText(region["snippet"])
+	snippetStartLine := intOrZero(region["startLine"])
 	if snippet == "" {
 		if context, ok := objectValue(physical["contextRegion"]); ok {
 			snippet = messageText(context["snippet"])
+			if start := intOrZero(context["startLine"]); start > 0 {
+				snippetStartLine = start
+			}
 		}
 	}
 	uri := firstString(artifact["uri"])
 	if baseID := firstString(artifact["uriBaseId"]); baseID != "" {
 		uri = resolveArtifactURI(run, baseID, uri, map[string]bool{})
 	}
-	return LocationDTO{
+	location := LocationDTO{
 		URI: uri, StartLine: intOrZero(region["startLine"]), StartColumn: intOrZero(region["startColumn"]),
 		EndLine: intOrZero(region["endLine"]), EndColumn: intOrZero(region["endColumn"]), Snippet: snippet,
+		SnippetStartLine: snippetStartLine,
 	}
+	if snippet != "" {
+		location.SnippetOrigin = "sarif"
+		location.SnippetStatus = "embedded"
+	} else if uri == "" || location.StartLine < 1 {
+		location.SnippetStatus = "missing-location"
+	} else {
+		location.SnippetStatus = "not-found"
+	}
+	return location
 }
 
 func resolveArtifactURI(run map[string]any, baseID, child string, visited map[string]bool) string {

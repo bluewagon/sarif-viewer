@@ -13,6 +13,6 @@ export function ExportSARIF(documentID: string, destination: string, reviews: $m
     return $Call.ByID(1444884537, documentID, destination, reviews);
 }
 
-export function LoadSARIF(path: string): $CancellablePromise<$models.SARIFDocumentDTO> {
-    return $Call.ByID(127111507, path);
+export function LoadSARIF(path: string, source: $models.SourceSelectionDTO): $CancellablePromise<$models.SARIFDocumentDTO> {
+    return $Call.ByID(127111507, path, source);
 }

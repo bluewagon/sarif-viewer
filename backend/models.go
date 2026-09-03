@@ -6,12 +6,34 @@ type FindingKey struct {
 }
 
 type LocationDTO struct {
-	URI         string `json:"uri"`
-	StartLine   int    `json:"startLine"`
-	StartColumn int    `json:"startColumn"`
-	EndLine     int    `json:"endLine"`
-	EndColumn   int    `json:"endColumn"`
-	Snippet     string `json:"snippet"`
+	URI              string `json:"uri"`
+	StartLine        int    `json:"startLine"`
+	StartColumn      int    `json:"startColumn"`
+	EndLine          int    `json:"endLine"`
+	EndColumn        int    `json:"endColumn"`
+	Snippet          string `json:"snippet"`
+	SnippetStartLine int    `json:"snippetStartLine"`
+	SnippetOrigin    string `json:"snippetOrigin"`
+	SnippetStatus    string `json:"snippetStatus"`
+}
+
+type SourceSelectionDTO struct {
+	Kind              string               `json:"kind"`
+	Location          string               `json:"location"`
+	ContextLines      int                  `json:"contextLines"`
+	GitAuthentication GitAuthenticationDTO `json:"gitAuthentication"`
+}
+
+type GitAuthenticationDTO struct {
+	Provider            string `json:"provider"`
+	Username            string `json:"username"`
+	PersonalAccessToken string `json:"personalAccessToken"`
+}
+
+type SnippetSummaryDTO struct {
+	Generated   int `json:"generated"`
+	Embedded    int `json:"embedded"`
+	Unavailable int `json:"unavailable"`
 }
 
 type FindingDTO struct {
@@ -39,13 +61,14 @@ type RunSummaryDTO struct {
 }
 
 type SARIFDocumentDTO struct {
-	DocumentID   string          `json:"documentId"`
-	FileName     string          `json:"fileName"`
-	SourcePath   string          `json:"sourcePath"`
-	Version      string          `json:"version"`
-	FindingCount int             `json:"findingCount"`
-	Runs         []RunSummaryDTO `json:"runs"`
-	Findings     []FindingDTO    `json:"findings"`
+	DocumentID     string            `json:"documentId"`
+	FileName       string            `json:"fileName"`
+	SourcePath     string            `json:"sourcePath"`
+	Version        string            `json:"version"`
+	FindingCount   int               `json:"findingCount"`
+	Runs           []RunSummaryDTO   `json:"runs"`
+	Findings       []FindingDTO      `json:"findings"`
+	SnippetSummary SnippetSummaryDTO `json:"snippetSummary"`
 }
 
 type FindingReview struct {
@@ -58,7 +81,8 @@ type FindingReview struct {
 }
 
 type loadedSARIF struct {
-	document   map[string]any
-	sourcePath string
-	dto        SARIFDocumentDTO
+	document    map[string]any
+	sourcePath  string
+	dto         SARIFDocumentDTO
+	cleanupPath string
 }

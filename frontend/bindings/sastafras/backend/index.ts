@@ -10,7 +10,10 @@ export type {
     FindingDTO,
     FindingKey,
     FindingReview,
+    GitAuthenticationDTO,
     LocationDTO,
     RunSummaryDTO,
-    SARIFDocumentDTO
+    SARIFDocumentDTO,
+    SnippetSummaryDTO,
+    SourceSelectionDTO
 } from "./models.js";

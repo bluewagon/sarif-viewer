@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useState} from 'react'
 import {Browser, Dialogs} from '@wailsio/runtime'
 import {SARIFService} from '../bindings/sastafras/backend'
-import type {FindingDTO, FindingReview, SARIFDocumentDTO} from '../bindings/sastafras/backend/models'
+import type {FindingDTO, FindingReview, GitAuthenticationDTO, SARIFDocumentDTO, SourceSelectionDTO} from '../bindings/sastafras/backend/models'
 
 const PAGE_SIZE = 100
 const severities = ['critical', 'high', 'medium', 'low', 'informational'] as const
@@ -10,6 +10,21 @@ type Severity = typeof severities[number]
 type Disposition = typeof dispositions[number]
 type Draft = Pick<FindingReview, 'severity' | 'disposition' | 'comment'>
 type Feedback = {kind: 'success' | 'error'; message: string} | null
+type SourceKind = 'local' | 'git'
+type GitProvider = 'existing' | 'github' | 'bitbucket' | 'azure-devops'
+type SourcePrompt = {
+  sarifPath: string
+  kind: SourceKind
+  location: string
+  contextLines: number
+  gitProvider: GitProvider
+  gitUsername: string
+  gitPersonalAccessToken: string
+  revealGitPersonalAccessToken: boolean
+  error: string
+}
+
+const emptyGitAuthentication: GitAuthenticationDTO = {provider: '', username: '', personalAccessToken: ''}
 
 const icons = {
   folder: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-11Z"/><path d="M3 9h18"/></svg>,
@@ -60,10 +75,10 @@ function App() {
   const [runFilter, setRunFilter] = useState('all')
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [loadError, setLoadError] = useState('')
   const [validationError, setValidationError] = useState('')
   const [feedback, setFeedback] = useState<Feedback>(null)
   const [dirty, setDirty] = useState(false)
+  const [sourcePrompt, setSourcePrompt] = useState<SourcePrompt | null>(null)
 
   const findings = useMemo(() => document?.findings ?? [], [document])
   const selectedFinding = useMemo(() => findings.find((finding) => findingID(finding) === selectedID) ?? null, [findings, selectedID])
@@ -121,11 +136,54 @@ function App() {
       AllowsOtherFiletypes: true, Filters: [{DisplayName: 'SARIF files', Pattern: '*.sarif;*.json'}],
     })
     if (!path) return
-    setLoading(true)
-    setLoadError('')
     setFeedback(null)
+    setSourcePrompt({
+      sarifPath: path,
+      kind: 'local',
+      location: '',
+      contextLines: 3,
+      gitProvider: 'github',
+      gitUsername: '',
+      gitPersonalAccessToken: '',
+      revealGitPersonalAccessToken: false,
+      error: '',
+    })
+  }
+
+  async function chooseSourceFolder() {
+    if (!sourcePrompt || loading) return
+    const path = await Dialogs.OpenFile({
+      Title: 'Choose source folder', ButtonText: 'Choose Folder', CanChooseDirectories: true, CanChooseFiles: false,
+      AllowsMultipleSelection: false, AllowsOtherFiletypes: true,
+    })
+    if (path) setSourcePrompt({...sourcePrompt, kind: 'local', location: path, error: ''})
+  }
+
+  async function loadWithSource(source: SourceSelectionDTO) {
+    if (!sourcePrompt) return
+    if (source.kind !== 'none' && !source.location.trim()) {
+      setSourcePrompt({...sourcePrompt, error: source.kind === 'git' ? 'Enter a Git repository URI.' : 'Choose a local source folder.'})
+      return
+    }
+    if (!Number.isInteger(source.contextLines) || source.contextLines < 0 || source.contextLines > 20) {
+      setSourcePrompt({...sourcePrompt, error: 'Context lines must be a whole number between 0 and 20.'})
+      return
+    }
+    if (source.kind === 'git' && source.gitAuthentication.provider !== 'existing') {
+      if ((source.gitAuthentication.provider === 'github' || source.gitAuthentication.provider === 'bitbucket') && !source.gitAuthentication.username.trim()) {
+        setSourcePrompt({...sourcePrompt, error: `Enter your ${source.gitAuthentication.provider === 'github' ? 'GitHub' : 'Bitbucket'} username.`})
+        return
+      }
+      if (!source.gitAuthentication.personalAccessToken.trim()) {
+        setSourcePrompt({...sourcePrompt, error: 'Enter a personal access token.'})
+        return
+      }
+    }
+    const sarifPath = sourcePrompt.sarifPath
+    setLoading(true)
+    setSourcePrompt({...sourcePrompt, gitPersonalAccessToken: '', revealGitPersonalAccessToken: false, error: ''})
     try {
-      const loaded = await SARIFService.LoadSARIF(path)
+      const loaded = await SARIFService.LoadSARIF(sarifPath, source)
       setDocument(loaded)
       setReviews(new Map())
       setDirty(false)
@@ -135,10 +193,10 @@ function App() {
       setRunFilter('all')
       setPage(0)
       setSelectedID(loaded.findings?.[0] ? findingID(loaded.findings[0]) : '')
+      setSourcePrompt(null)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      if (document) setFeedback({kind: 'error', message})
-      else setLoadError(message)
+      setSourcePrompt((current) => current ? {...current, error: message} : current)
     } finally {
       setLoading(false)
     }
@@ -211,12 +269,14 @@ function App() {
         </div>
       </header>
       {feedback && <div className={`feedback feedback-${feedback.kind}`} role="status">{feedback.message}<button onClick={() => setFeedback(null)} aria-label="Dismiss message">×</button></div>}
-      {!document ? <Welcome loading={loading} error={loadError} onOpen={openSARIF}/> : (
+      {sourcePrompt && <SourceImportModal prompt={sourcePrompt} loading={loading} onChange={setSourcePrompt} onChooseFolder={chooseSourceFolder} onCancel={() => setSourcePrompt(null)} onLoad={loadWithSource}/>}
+      {!document ? <Welcome loading={loading} onOpen={openSARIF}/> : (
         <main className="workspace">
           <section className="document-heading">
             <div><div className="document-title-row"><span className="document-file-icon">{icons.file}</span><h1>{document.fileName}</h1><span className="version-badge">SARIF {document.version}</span></div><p title={document.sourcePath}>{document.runs?.map((run) => run.toolName).filter((name, index, all) => all.indexOf(name) === index).join(' · ')} · {document.runs?.length ?? 0} {(document.runs?.length ?? 0) === 1 ? 'run' : 'runs'}</p></div>
             <div className="headline-count"><strong>{document.findingCount.toLocaleString()}</strong><span>Total findings</span></div>
           </section>
+          {document.snippetSummary && <div className="snippet-summary" role="status"><strong>{document.snippetSummary.generated.toLocaleString()}</strong> generated · <strong>{document.snippetSummary.embedded.toLocaleString()}</strong> embedded · <strong>{document.snippetSummary.unavailable.toLocaleString()}</strong> unavailable</div>}
           <section className="summary-grid" aria-label="Finding summary">
             {severities.map((severity) => <button key={severity} className={`summary-card severity-${severity} ${severityFilter === severity ? 'is-active' : ''}`} onClick={() => setSeverityFilter(severityFilter === severity ? 'all' : severity)}><span>{titleCase(severity)}</span><strong>{summary.severityCounts[severity].toLocaleString()}</strong></button>)}
             <div className="review-progress"><div><span>Reviewed</span><strong>{reviewedCount.toLocaleString()} <small>/ {document.findingCount.toLocaleString()}</small></strong></div><div className="progress-track"><span style={{width: `${document.findingCount ? (reviewedCount / document.findingCount) * 100 : 0}%`}} /></div></div>
@@ -247,8 +307,65 @@ function App() {
   )
 }
 
-function Welcome({loading, error, onOpen}: {loading: boolean; error: string; onOpen: () => void}) {
-  return <main className="welcome"><div className="welcome-graphic" aria-hidden="true"><span className="scan-line"/><span className="document-icon">{icons.file}</span><span className="status-dot dot-one"/><span className="status-dot dot-two"/><span className="status-dot dot-three"/></div><p className="eyebrow">Local security review</p><h1>Turn scan output into<br/><span>decisions you can trust.</span></h1><p className="welcome-copy">Open a SARIF 2.1.0 file to triage findings, adjust security severity, and document every review decision.</p><button className="button button-primary button-large" onClick={onOpen} disabled={loading}>{loading ? <span className="spinner"/> : icons.folder}{loading ? 'Reading SARIF…' : 'Open SARIF file'}</button>{error && <div className="empty-error" role="alert"><strong>Could not open that file</strong><span>{error}</span></div>}<div className="privacy-note"><span className="lock-icon" aria-hidden="true">◈</span>Your files and reviews stay on this device.</div></main>
+function SourceImportModal({prompt, loading, onChange, onChooseFolder, onCancel, onLoad}: {
+  prompt: SourcePrompt
+  loading: boolean
+  onChange: (prompt: SourcePrompt) => void
+  onChooseFolder: () => void
+  onCancel: () => void
+  onLoad: (source: SourceSelectionDTO) => void
+}) {
+  const gitAuthentication: GitAuthenticationDTO = prompt.kind === 'git'
+    ? {provider: prompt.gitProvider, username: prompt.gitUsername.trim(), personalAccessToken: prompt.gitPersonalAccessToken.trim()}
+    : emptyGitAuthentication
+  const source: SourceSelectionDTO = {kind: prompt.kind, location: prompt.location.trim(), contextLines: prompt.contextLines, gitAuthentication}
+  const gitProviderDetails = {
+    existing: {
+      placeholder: 'git@host:owner/project.git',
+      note: 'Uses public access, SSH agents, or credentials already configured for your system Git client.',
+    },
+    github: {
+      placeholder: 'https://github.com/owner/project.git',
+      note: 'Use a GitHub personal access token with read access to the repository. Organization SSO may also need authorization.',
+    },
+    bitbucket: {
+      placeholder: 'https://bitbucket.example.com/scm/project/repository.git',
+      note: 'Use a Bitbucket Data Center personal user access token with repository read permission.',
+    },
+    'azure-devops': {
+      placeholder: 'https://dev.azure.com/organization/project/_git/repository',
+      note: 'Use an Azure DevOps personal access token with Code read permission.',
+    },
+  }[prompt.gitProvider]
+  const changeSourceKind = (kind: SourceKind) => onChange({...prompt, kind, location: '', gitPersonalAccessToken: '', revealGitPersonalAccessToken: false, error: ''})
+  const changeGitProvider = (provider: GitProvider) => onChange({...prompt, gitProvider: provider, gitUsername: '', gitPersonalAccessToken: '', revealGitPersonalAccessToken: false, error: ''})
+  return <div className="modal-backdrop"><section className="source-modal" role="dialog" aria-modal="true" aria-labelledby="source-modal-title">
+    <div className="modal-header"><p className="eyebrow">Source code</p><h2 id="source-modal-title">Add code context to findings</h2><p>Choose the source used by this scan, or continue with snippets already embedded in the SARIF file.</p></div>
+    <div className="source-tabs" role="tablist" aria-label="Source type">
+      <button role="tab" aria-selected={prompt.kind === 'local'} className={prompt.kind === 'local' ? 'is-active' : ''} onClick={() => changeSourceKind('local')}>Local folder</button>
+      <button role="tab" aria-selected={prompt.kind === 'git'} className={prompt.kind === 'git' ? 'is-active' : ''} onClick={() => changeSourceKind('git')}>Git repository</button>
+    </div>
+    <div className="source-fields">
+      {prompt.kind === 'local' ? <label><span>Source folder</span><div className="folder-input"><input value={prompt.location} readOnly placeholder="No folder selected"/><button className="button button-secondary" onClick={onChooseFolder} disabled={loading}>Browse…</button></div></label> : <>
+        <label><span>Git authentication</span><select aria-label="Git authentication" value={prompt.gitProvider} onChange={(event) => changeGitProvider(event.target.value as GitProvider)} disabled={loading}>
+          <option value="github">GitHub personal access token</option>
+          <option value="bitbucket">Bitbucket Data Center personal access token</option>
+          <option value="azure-devops">Azure DevOps personal access token</option>
+          <option value="existing">Existing Git authentication</option>
+        </select></label>
+        <label><span>Git repository URI</span><input value={prompt.location} onChange={(event) => onChange({...prompt, location: event.target.value, error: ''})} placeholder={gitProviderDetails.placeholder} autoFocus autoComplete="off" spellCheck={false}/><small className="source-note">{gitProviderDetails.note}</small></label>
+        {(prompt.gitProvider === 'github' || prompt.gitProvider === 'bitbucket') && <label><span>Username</span><input aria-label="Username" value={prompt.gitUsername} onChange={(event) => onChange({...prompt, gitUsername: event.target.value, error: ''})} placeholder={prompt.gitProvider === 'github' ? 'GitHub username' : 'Bitbucket username'} autoComplete="off" spellCheck={false}/></label>}
+        {prompt.gitProvider !== 'existing' && <label><span>Personal access token</span><div className="secret-input"><input aria-label="Personal access token" type={prompt.revealGitPersonalAccessToken ? 'text' : 'password'} value={prompt.gitPersonalAccessToken} onChange={(event) => onChange({...prompt, gitPersonalAccessToken: event.target.value, error: ''})} placeholder="Paste token" autoComplete="new-password" spellCheck={false}/><button type="button" className="button button-secondary" aria-label={prompt.revealGitPersonalAccessToken ? 'Hide personal access token' : 'Show personal access token'} onClick={() => onChange({...prompt, revealGitPersonalAccessToken: !prompt.revealGitPersonalAccessToken})} disabled={loading}>{prompt.revealGitPersonalAccessToken ? 'Hide' : 'Show'}</button></div><small className="source-note">Used for this import attempt only. The token is not saved.</small></label>}
+      </>}
+      <div className="context-field"><label htmlFor="context-lines">Context lines</label><input id="context-lines" type="number" min={0} max={20} step={1} value={prompt.contextLines} onChange={(event) => onChange({...prompt, contextLines: Number(event.target.value), error: ''})}/><small>Lines shown before and after the affected range (0–20).</small></div>
+    </div>
+    {prompt.error && <div className="modal-error" role="alert">{prompt.error}</div>}
+    <div className="modal-actions"><button className="button button-ghost" onClick={onCancel} disabled={loading}>Cancel</button><button className="button button-secondary" onClick={() => onLoad({kind: 'none', location: '', contextLines: prompt.contextLines, gitAuthentication: emptyGitAuthentication})} disabled={loading}>Continue without source</button><button className="button button-primary" onClick={() => onLoad(source)} disabled={loading}>{loading ? <span className="spinner"/> : icons.folder}{loading ? (prompt.kind === 'git' ? 'Cloning…' : 'Reading…') : 'Load with source'}</button></div>
+  </section></div>
+}
+
+function Welcome({loading, onOpen}: {loading: boolean; onOpen: () => void}) {
+  return <main className="welcome"><div className="welcome-graphic" aria-hidden="true"><span className="scan-line"/><span className="document-icon">{icons.file}</span><span className="status-dot dot-one"/><span className="status-dot dot-two"/><span className="status-dot dot-three"/></div><p className="eyebrow">Local security review</p><h1>Turn scan output into<br/><span>decisions you can trust.</span></h1><p className="welcome-copy">Open a SARIF 2.1.0 file to triage findings, adjust security severity, and document every review decision.</p><button className="button button-primary button-large" onClick={onOpen} disabled={loading}>{loading ? <span className="spinner"/> : icons.folder}{loading ? 'Reading SARIF…' : 'Open SARIF file'}</button><div className="privacy-note"><span className="lock-icon" aria-hidden="true">◈</span>Your files and reviews stay on this device.</div></main>
 }
 
 function FindingRow({finding, review, selected, onSelect}: {finding: FindingDTO; review: Draft; selected: boolean; onSelect: (finding: FindingDTO) => void}) {
@@ -259,12 +376,36 @@ function FindingDetail({finding, draft, setDraft, draftDirty, validationError, s
   return <><div className="detail-scroll"><div className="detail-header"><div className="detail-labels"><span className={`severity-pill severity-${draft.severity}`}>{titleCase(draft.severity)}</span><span className={`disposition disposition-${draft.disposition}`}>{titleCase(draft.disposition)}</span></div><h2>{finding.ruleName || finding.ruleId || 'Finding'}</h2><p className="rule-id">{finding.ruleId || 'No rule identifier'} · {finding.toolName} · {finding.runName}</p></div>
     <section className="detail-section"><h3>Finding</h3><p className="finding-description">{finding.message}</p></section>
     {finding.ruleDescription && <section className="detail-section"><h3>Rule</h3><p>{finding.ruleDescription}</p>{finding.helpUri && <button className="text-link" onClick={() => Browser.OpenURL(finding.helpUri)}>View rule guidance {icons.external}</button>}</section>}
-    <section className="detail-section"><h3>Location</h3><div className="location-card">{icons.location}<div><strong>{locationLabel(finding)}</strong>{finding.location.startLine > 0 && <span>Line {finding.location.startLine}{finding.location.endLine > finding.location.startLine ? `–${finding.location.endLine}` : ''}</span>}</div></div>{finding.location.snippet ? <pre className="code-snippet"><code>{finding.location.snippet}</code></pre> : <p className="muted">No embedded source snippet is available.</p>}</section>
+    <section className="detail-section"><h3>Location</h3><div className="location-card">{icons.location}<div><strong>{locationLabel(finding)}</strong>{finding.location.startLine > 0 && <span>Line {finding.location.startLine}{finding.location.endLine > finding.location.startLine ? `–${finding.location.endLine}` : ''}</span>}</div></div><SnippetView finding={finding}/></section>
     <section className="detail-section review-section"><div className="section-heading"><div><h3>Review decision</h3><p>Every applied change requires a comment.</p></div>{finding.reviewedAt && !appliedReview && <span className="previous-review">Previously reviewed</span>}</div>
       <fieldset><legend>Security severity</legend><div className="choice-grid severity-choices">{severities.map((severity) => <label key={severity} className={draft.severity === severity ? 'is-selected' : ''}><input type="radio" name="severity" value={severity} checked={draft.severity === severity} onChange={() => setDraft({...draft, severity})}/><i className={`severity-bg-${severity}`}/>{titleCase(severity)}</label>)}</div></fieldset>
       <fieldset><legend>Disposition</legend><div className="choice-grid disposition-choices">{dispositions.map((disposition) => <label key={disposition} className={draft.disposition === disposition ? 'is-selected' : ''}><input type="radio" name="disposition" value={disposition} checked={draft.disposition === disposition} onChange={() => setDraft({...draft, disposition})}/><span aria-hidden="true">{disposition === 'confirmed' ? '✓' : disposition === 'false-positive' ? '×' : '•'}</span>{titleCase(disposition)}</label>)}</div></fieldset>
       <label className="comment-field"><span>Review comment <em>Required</em></span><textarea value={draft.comment} onChange={(event) => {setDraft({...draft, comment: event.target.value}); setValidationError('')}} rows={4} placeholder="Explain the reasoning behind this review decision…" aria-invalid={Boolean(validationError)} aria-describedby={validationError ? 'comment-error' : undefined}/></label>{validationError && <p className="validation-error" id="comment-error" role="alert">{validationError}</p>}
     </section></div><div className="detail-actions"><span>{draftDirty ? 'Unapplied changes' : appliedReview ? `Applied ${new Date(appliedReview.reviewedAt).toLocaleString()}` : 'No pending changes'}</span><div><button className="button button-ghost" onClick={onReset} disabled={!draftDirty}>Reset</button><button className="button button-primary" onClick={onApply} disabled={!draftDirty}>{icons.check}Apply review</button></div></div></>
+}
+
+function SnippetView({finding}: {finding: FindingDTO}) {
+  const {location} = finding
+  if (location.snippetStatus !== 'generated' && location.snippetStatus !== 'embedded') {
+    const messages: Record<string, string> = {
+      'missing-location': 'This finding does not include a usable source location.',
+      'ambiguous': 'The artifact location matches more than one source file.',
+      'outside-root': 'The artifact location resolves outside the selected source folder.',
+      'binary': 'The matching source file is not UTF-8 text.',
+      'too-large': 'The matching source file is too large to preview.',
+      'invalid-line': 'The reported line range is outside the matching source file.',
+      'unreadable': 'The matching source file could not be read.',
+      'not-found': 'No matching source file or embedded snippet is available.',
+    }
+    return <p className="muted">{messages[location.snippetStatus] ?? messages['not-found']}</p>
+  }
+  const firstLine = location.snippetStartLine || location.startLine || 1
+  const affectedEnd = location.endLine >= location.startLine ? location.endLine : location.startLine
+  return <div className="snippet-block"><div className="snippet-heading"><span>{location.snippetOrigin === 'source' ? 'Generated from source' : 'Embedded in SARIF'}</span></div><pre className="code-snippet"><code>{location.snippet.split('\n').map((line, index) => {
+    const lineNumber = firstLine + index
+    const affected = location.startLine > 0 && lineNumber >= location.startLine && lineNumber <= affectedEnd
+    return <span className={`code-line ${affected ? 'is-affected' : ''}`} key={lineNumber}><i>{lineNumber}</i><b>{line || ' '}</b></span>
+  })}</code></pre></div>
 }
 
 export default App

@@ -21,7 +21,7 @@ func NewSARIFService() *SARIFService {
 	return &SARIFService{}
 }
 
-func (s *SARIFService) LoadSARIF(path string) (SARIFDocumentDTO, error) {
+func (s *SARIFService) LoadSARIF(path string, source SourceSelectionDTO) (SARIFDocumentDTO, error) {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		return SARIFDocumentDTO{}, errors.New("no SARIF file was selected")
@@ -47,10 +47,66 @@ func (s *SARIFService) LoadSARIF(path string) (SARIFDocumentDTO, error) {
 		return SARIFDocumentDTO{}, err
 	}
 
+	provider, cleanupPath, err := prepareSource(source, document)
+	if err != nil {
+		return SARIFDocumentDTO{}, err
+	}
+	keepSource := false
+	if cleanupPath != "" {
+		defer func() {
+			if !keepSource {
+				_ = os.RemoveAll(cleanupPath)
+			}
+		}()
+	}
+	enrichSnippets(document, &dto, provider, source.ContextLines)
+
 	s.mu.Lock()
-	s.current = &loadedSARIF{document: document, sourcePath: absolutePath, dto: dto}
+	previous := s.current
+	s.current = &loadedSARIF{document: document, sourcePath: absolutePath, dto: dto, cleanupPath: cleanupPath}
 	s.mu.Unlock()
+	keepSource = true
+	if previous != nil && previous.cleanupPath != "" && previous.cleanupPath != cleanupPath {
+		_ = os.RemoveAll(previous.cleanupPath)
+	}
 	return dto, nil
+}
+
+func prepareSource(source SourceSelectionDTO, document map[string]any) (sourceProvider, string, error) {
+	if source.ContextLines < 0 || source.ContextLines > 20 {
+		return nil, "", errors.New("context lines must be between 0 and 20")
+	}
+	switch strings.ToLower(strings.TrimSpace(source.Kind)) {
+	case "", "none":
+		return nil, "", nil
+	case "local":
+		provider, err := newLocalSource(source.Location)
+		return provider, "", err
+	case "git":
+		temporaryRoot, err := os.MkdirTemp("", "sastafras-source-")
+		if err != nil {
+			return nil, "", fmt.Errorf("create temporary source folder: %w", err)
+		}
+		provider, err := newGitSource(source.Location, temporaryRoot, document, source.GitAuthentication)
+		if err != nil {
+			_ = os.RemoveAll(temporaryRoot)
+			return nil, "", err
+		}
+		return provider, temporaryRoot, nil
+	default:
+		return nil, "", errors.New("source kind must be none, local, or git")
+	}
+}
+
+func (s *SARIFService) ServiceShutdown() error {
+	s.mu.Lock()
+	current := s.current
+	s.current = nil
+	s.mu.Unlock()
+	if current != nil && current.cleanupPath != "" {
+		return os.RemoveAll(current.cleanupPath)
+	}
+	return nil
 }
 
 func (s *SARIFService) ExportSARIF(documentID, destination string, reviews []FindingReview) error {
