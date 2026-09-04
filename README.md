@@ -2,6 +2,8 @@
 
 Sastafras is a local desktop application for reviewing findings in SARIF 2.1.0 files. It combines findings from every run, provides search and triage filters, and lets a reviewer assign a security severity, disposition, and required comment before exporting a separate reviewed SARIF file.
 
+Sastafras supports macOS and Windows desktop builds.
+
 When opening a report, reviewers can select a local source folder, clone a Git repository, or continue with snippets embedded in the SARIF file. Source-backed snippets are generated for display only and are not added to exported reports.
 
 SARIF files, local source, and review data are not uploaded by Sastafras. Choosing a Git repository contacts the specified Git host through the system Git client. Imports can use existing public, SSH, or system-managed credentials, or a one-time personal access token for GitHub, Bitbucket Data Center, or Azure DevOps. PATs are passed only to the clone and revision-fetch processes, are never placed in repository URLs or Git configuration files, and are not retained after the import attempt. Temporary clones are removed when another report is loaded or the application exits.
@@ -35,6 +37,12 @@ wails3 dev
 go test ./...
 cd frontend && npm test && npm run build
 cd .. && wails3 build
+```
+
+On Apple Silicon, cross-build the typical 64-bit Windows executable with:
+
+```sh
+wails3 build GOOS=windows GOARCH=amd64
 ```
 
 The generated TypeScript bindings in `frontend/bindings` are refreshed by the Wails build tasks. To regenerate them directly:
