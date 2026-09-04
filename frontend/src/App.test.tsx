@@ -38,6 +38,11 @@ function finding(index: number, overrides: Partial<FindingDTO> = {}): FindingDTO
     comment: '',
     reviewedAt: '',
     location: {uri: `src/file-${index}.ts`, startLine: index + 1, startColumn: 2, endLine: index + 1, endColumn: 8, snippet: 'unsafe(value)', snippetStartLine: index + 1, snippetOrigin: 'sarif', snippetStatus: 'embedded'},
+    findingId: '',
+    isReachable: null,
+    vulnerabilityEvidence: '',
+    affectedRoute: {route: '', method: ''},
+    codeFlows: [],
     ...overrides,
   }
 }
@@ -235,6 +240,65 @@ describe('SARIF Viewer review workspace', () => {
 		expect(sourceLine).toHaveClass('is-affected')
 		expect(within(sourceLine as HTMLElement).getByText('10')).toBeVisible()
 	})
+
+  it('renders ThreatHound metadata, evidence, and readable code-flow traces', async () => {
+    const document = sarifDocument(1)
+    document.findings![0] = finding(0, {
+      findingId: 'finding-123',
+      isReachable: false,
+      vulnerabilityEvidence: 'Input crosses a trust boundary.\nThe sink receives it without validation.',
+      affectedRoute: {method: 'post', route: '/api/orders/:id'},
+      codeFlows: [{
+        message: 'Request data reaches the command runner',
+        threadFlows: [{
+          id: 'request-thread',
+          message: 'Request processing',
+          steps: [{
+            message: 'Read the route parameter',
+            location: {uri: 'file:///repo/src/routes.ts', startLine: 12, startColumn: 4, endLine: 12, endColumn: 20, snippet: '', snippetStartLine: 12, snippetOrigin: '', snippetStatus: 'not-found'},
+            executionOrder: 5,
+            nestingLevel: 0,
+          }, {
+            message: 'Invoke the vulnerable sink',
+            location: {uri: '', startLine: 0, startColumn: 0, endLine: 0, endColumn: 0, snippet: '', snippetStartLine: 0, snippetOrigin: '', snippetStatus: 'missing-location'},
+            executionOrder: -1,
+            nestingLevel: 2,
+          }],
+        }],
+      }, {
+        message: '',
+        threadFlows: [{id: 'alternate-thread', message: '', steps: []}],
+      }],
+    })
+
+    render(<App/>)
+    await openDocument(document)
+
+    expect(screen.getByRole('heading', {name: 'ThreatHound'})).toBeVisible()
+    expect(screen.getByText('finding-123')).toBeVisible()
+    expect(screen.getByText('Not reachable')).toBeVisible()
+    expect(screen.getByText('POST /api/orders/:id')).toBeVisible()
+    expect(screen.getByText(/Input crosses a trust boundary\. The sink receives it without validation\./)).toBeVisible()
+    expect(screen.getByRole('heading', {name: 'Code flows'})).toBeVisible()
+    expect(screen.getByRole('heading', {name: 'Request data reaches the command runner'})).toBeVisible()
+    expect(screen.getByText('Request processing')).toBeVisible()
+    expect(screen.getByText('request-thread')).toBeVisible()
+    expect(screen.getByText('Read the route parameter')).toBeVisible()
+    expect(screen.getByText('file:///repo/src/routes.ts:12:4')).toBeVisible()
+    expect(screen.getByText('Execution order 5')).toBeVisible()
+    expect(screen.getByText('Invoke the vulnerable sink')).toBeVisible()
+    expect(screen.getByRole('heading', {name: 'Code flow 2'})).toBeVisible()
+    expect(screen.getByText('alternate-thread')).toBeVisible()
+    expect(screen.getByText('No steps provided.')).toBeVisible()
+  })
+
+  it('hides ThreatHound-only sections when metadata is unavailable', async () => {
+    render(<App/>)
+    await openDocument(sarifDocument(1))
+    expect(screen.queryByRole('heading', {name: 'ThreatHound'})).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', {name: 'Vulnerability evidence'})).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', {name: 'Code flows'})).not.toBeInTheDocument()
+  })
 
   it('requires a comment, applies a review, and replaces it on a later edit', async () => {
     render(<App/>)

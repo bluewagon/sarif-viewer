@@ -1,6 +1,7 @@
 import type {FindingDTO, FindingReview} from '../../../bindings/sarif-viewer/backend/models'
 import {icons} from '../../components/icons'
 import {dispositions, locationLabel, severities, titleCase, type Draft} from './model'
+import {CodeFlowTrace} from './CodeFlowTrace'
 import {SnippetView} from './SnippetView'
 
 interface FindingDetailProps {
@@ -28,11 +29,22 @@ export function FindingDetail({
   onReset,
   onApply,
 }: FindingDetailProps) {
+  const affectedRoute = finding.affectedRoute ?? {route: '', method: ''}
+  const codeFlows = finding.codeFlows ?? []
+  const routeLabel = [affectedRoute.method?.toUpperCase(), affectedRoute.route].filter(Boolean).join(' ')
+  const hasThreatHoundMetadata = Boolean(finding.findingId || finding.isReachable != null || routeLabel)
   return <>
     <div className="detail-scroll"><div className="detail-header"><div className="detail-labels"><span className={`severity-pill severity-${draft.severity}`}>{titleCase(draft.severity)}</span><span className={`disposition disposition-${draft.disposition}`}>{titleCase(draft.disposition)}</span></div><h2>{finding.ruleName || finding.ruleId || 'Finding'}</h2><p className="rule-id">{finding.ruleId || 'No rule identifier'} · {finding.toolName} · {finding.runName}</p></div>
       <section className="detail-section"><h3>Finding</h3><p className="finding-description">{finding.message}</p></section>
+      {hasThreatHoundMetadata && <section className="detail-section"><h3>ThreatHound</h3><dl className="threathound-metadata">
+        {finding.findingId && <div><dt>Finding ID</dt><dd><code>{finding.findingId}</code></dd></div>}
+        {finding.isReachable != null && <div><dt>Reachability</dt><dd><span className={`reachability reachability-${finding.isReachable ? 'reachable' : 'unreachable'}`}>{finding.isReachable ? 'Reachable' : 'Not reachable'}</span></dd></div>}
+        {routeLabel && <div><dt>Affected route</dt><dd><code>{routeLabel}</code></dd></div>}
+      </dl></section>}
+      {finding.vulnerabilityEvidence && <section className="detail-section"><h3>Vulnerability evidence</h3><p className="vulnerability-evidence">{finding.vulnerabilityEvidence}</p></section>}
       {finding.ruleDescription && <section className="detail-section"><h3>Rule</h3><p>{finding.ruleDescription}</p>{finding.helpUri && <button className="text-link" onClick={() => onOpenHelp(finding.helpUri)}>View rule guidance {icons.external}</button>}</section>}
       <section className="detail-section"><h3>Location</h3><div className="location-card">{icons.location}<div><strong>{locationLabel(finding)}</strong>{finding.location.startLine > 0 && <span>Line {finding.location.startLine}{finding.location.endLine > finding.location.startLine ? `–${finding.location.endLine}` : ''}</span>}</div></div><SnippetView finding={finding}/></section>
+      {Boolean(codeFlows.length) && <section className="detail-section"><h3>Code flows</h3><CodeFlowTrace codeFlows={codeFlows}/></section>}
       <section className="detail-section review-section"><div className="section-heading"><div><h3>Review decision</h3><p>Every applied change requires a comment.</p></div>{finding.reviewedAt && !appliedReview && <span className="previous-review">Previously reviewed</span>}</div>
         <fieldset><legend>Security severity</legend><div className="choice-grid severity-choices">{severities.map((severity) => <label key={severity} className={draft.severity === severity ? 'is-selected' : ''}><input type="radio" name="severity" value={severity} checked={draft.severity === severity} onChange={() => onDraftChange({...draft, severity})}/><i className={`severity-bg-${severity}`}/>{titleCase(severity)}</label>)}</div></fieldset>
         <fieldset><legend>Disposition</legend><div className="choice-grid disposition-choices">{dispositions.map((disposition) => <label key={disposition} className={draft.disposition === disposition ? 'is-selected' : ''}><input type="radio" name="disposition" value={disposition} checked={draft.disposition === disposition} onChange={() => onDraftChange({...draft, disposition})}/><span aria-hidden="true">{disposition === 'confirmed' ? '✓' : disposition === 'false-positive' ? '×' : '•'}</span>{titleCase(disposition)}</label>)}</div></fieldset>

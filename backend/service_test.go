@@ -14,8 +14,10 @@ func TestExportSARIFMergesReviewsAndPreservesUnknownContent(t *testing.T) {
   "unknownRoot":{"large":900719925474099312345},
   "runs":[{"tool":{"driver":{"name":"Tool"}},"results":[{
     "ruleId":"R1","level":"warning","message":{"text":"Finding"},
+    "fingerprints":{"threathound/findingId/v1":"finding-preserved"},
+    "codeFlows":[{"threadFlows":[{"locations":[{"location":{"message":{"text":"Preserve this step"}}}]}]}],
     "unknownResult":[1,2,3],
-    "properties":{"owner":"security","sarif-viewer":{"custom":"keep"}}
+    "properties":{"owner":"security","threathound/isReachable":{"reachable":false},"sarif-viewer":{"custom":"keep"}}
   }]}]
 }`)
 	document, err := service.LoadSARIF(source, SourceSelectionDTO{Kind: "none", ContextLines: 3})
@@ -47,6 +49,13 @@ func TestExportSARIFMergesReviewsAndPreservesUnknownContent(t *testing.T) {
 	}
 	if firstString(result["level"]) != "error" || nestedValue(result, "properties", "owner") != "security" {
 		t.Fatalf("standard or existing properties were not retained: %+v", result)
+	}
+	if nestedValue(result, "fingerprints", "threathound/findingId/v1") != "finding-preserved" || nestedValue(result, "properties", "threathound/isReachable", "reachable") != false {
+		t.Fatalf("ThreatHound metadata was not preserved: %+v", result)
+	}
+	codeFlows, _ := arrayValue(result["codeFlows"])
+	if len(codeFlows) != 1 || nestedValue(codeFlows[0], "threadFlows") == nil {
+		t.Fatalf("code flows were not preserved: %+v", result["codeFlows"])
 	}
 	metadata, _ := objectValue(nestedValue(result, "properties", "sarif-viewer"))
 	if metadata["custom"] != "keep" || metadata["comment"] != "Accepted test fixture" || metadata["disposition"] != "false-positive" {

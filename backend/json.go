@@ -51,6 +51,11 @@ func stringValue(value any) (string, bool) {
 	return result, ok
 }
 
+func boolValue(value any) (bool, bool) {
+	result, ok := value.(bool)
+	return result, ok
+}
+
 func firstString(values ...any) string {
 	for _, value := range values {
 		if result, ok := stringValue(value); ok && result != "" {

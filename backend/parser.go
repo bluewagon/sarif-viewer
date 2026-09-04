@@ -77,22 +77,128 @@ func normalizeFinding(run, result map[string]any, runName, toolName string, runI
 		level = "warning"
 	}
 	severity, disposition, comment, reviewedAt := reviewValues(result, rule, level)
+	findingID, isReachable, vulnerabilityEvidence, affectedRoute := threatHoundValues(result)
 	return FindingDTO{
-		Key:             FindingKey{RunIndex: runIndex, ResultIndex: resultIndex},
-		RunName:         runName,
-		ToolName:        toolName,
-		RuleID:          ruleID,
-		RuleName:        ruleName,
-		RuleDescription: description,
-		HelpURI:         helpURI,
-		Message:         resultMessage(result, rule),
-		SARIFLevel:      level,
-		Severity:        severity,
-		Disposition:     disposition,
-		Comment:         comment,
-		ReviewedAt:      reviewedAt,
-		Location:        primaryLocation(run, result),
+		Key:                   FindingKey{RunIndex: runIndex, ResultIndex: resultIndex},
+		RunName:               runName,
+		ToolName:              toolName,
+		RuleID:                ruleID,
+		RuleName:              ruleName,
+		RuleDescription:       description,
+		HelpURI:               helpURI,
+		Message:               resultMessage(result, rule),
+		SARIFLevel:            level,
+		Severity:              severity,
+		Disposition:           disposition,
+		Comment:               comment,
+		ReviewedAt:            reviewedAt,
+		Location:              primaryLocation(run, result),
+		FindingID:             findingID,
+		IsReachable:           isReachable,
+		VulnerabilityEvidence: vulnerabilityEvidence,
+		AffectedRoute:         affectedRoute,
+		CodeFlows:             normalizeCodeFlows(run, result),
 	}
+}
+
+func threatHoundValues(result map[string]any) (string, *bool, string, AffectedRouteDTO) {
+	findingID := firstString(nestedValue(result, "fingerprints", "threathound/findingId/v1"))
+	var isReachable *bool
+	if reachable, ok := boolValue(nestedValue(result, "properties", "threathound/isReachable", "reachable")); ok {
+		isReachable = &reachable
+	}
+	return findingID, isReachable,
+		firstString(nestedValue(result, "properties", "threathound/vulnerabilityEvidence")),
+		AffectedRouteDTO{
+			Route:  firstString(nestedValue(result, "properties", "threathound/affectedRoute", "route")),
+			Method: firstString(nestedValue(result, "properties", "threathound/affectedRoute", "method")),
+		}
+}
+
+func normalizeCodeFlows(run, result map[string]any) []CodeFlowDTO {
+	rawFlows, ok := arrayValue(result["codeFlows"])
+	if !ok {
+		return nil
+	}
+	flows := make([]CodeFlowDTO, 0, len(rawFlows))
+	for _, rawFlow := range rawFlows {
+		flow, ok := objectValue(rawFlow)
+		if !ok {
+			continue
+		}
+		normalized := CodeFlowDTO{Message: messageText(flow["message"])}
+		if rawThreads, ok := arrayValue(flow["threadFlows"]); ok {
+			normalized.ThreadFlows = make([]ThreadFlowDTO, 0, len(rawThreads))
+			for _, rawThread := range rawThreads {
+				thread, ok := objectValue(rawThread)
+				if !ok {
+					continue
+				}
+				normalized.ThreadFlows = append(normalized.ThreadFlows, normalizeThreadFlow(run, thread))
+			}
+		}
+		flows = append(flows, normalized)
+	}
+	return flows
+}
+
+func normalizeThreadFlow(run, thread map[string]any) ThreadFlowDTO {
+	normalized := ThreadFlowDTO{
+		ID:      firstString(thread["id"]),
+		Message: messageText(thread["message"]),
+	}
+	rawSteps, ok := arrayValue(thread["locations"])
+	if !ok {
+		return normalized
+	}
+	normalized.Steps = make([]CodeFlowStepDTO, 0, len(rawSteps))
+	for _, rawStep := range rawSteps {
+		step, ok := objectValue(rawStep)
+		if !ok {
+			continue
+		}
+		step = resolveThreadFlowLocation(run, step)
+		location, _ := objectValue(step["location"])
+		physical, _ := objectValue(location["physicalLocation"])
+		executionOrder := -1
+		if value, ok := intValue(step["executionOrder"]); ok && value >= 0 {
+			executionOrder = value
+		}
+		nestingLevel := 0
+		if value, ok := intValue(step["nestingLevel"]); ok && value >= 0 {
+			nestingLevel = value
+		}
+		normalized.Steps = append(normalized.Steps, CodeFlowStepDTO{
+			Message:        messageText(location["message"]),
+			Location:       locationFromPhysical(run, physical),
+			ExecutionOrder: executionOrder,
+			NestingLevel:   nestingLevel,
+		})
+	}
+	return normalized
+}
+
+func resolveThreadFlowLocation(run, step map[string]any) map[string]any {
+	index, ok := intValue(step["index"])
+	if !ok || index < 0 {
+		return step
+	}
+	cachedSteps, ok := arrayValue(run["threadFlowLocations"])
+	if !ok || index >= len(cachedSteps) {
+		return step
+	}
+	cached, ok := objectValue(cachedSteps[index])
+	if !ok {
+		return step
+	}
+	merged := make(map[string]any, len(cached)+len(step))
+	for key, value := range cached {
+		merged[key] = value
+	}
+	for key, value := range step {
+		merged[key] = value
+	}
+	return merged
 }
 
 func toolNameForRun(run map[string]any) string {
@@ -197,6 +303,10 @@ func primaryLocation(run, result map[string]any) LocationDTO {
 		return LocationDTO{}
 	}
 	physical, _ := objectValue(nestedValue(locations[0], "physicalLocation"))
+	return locationFromPhysical(run, physical)
+}
+
+func locationFromPhysical(run, physical map[string]any) LocationDTO {
 	artifact, _ := objectValue(physical["artifactLocation"])
 	region, _ := objectValue(physical["region"])
 	snippet := messageText(region["snippet"])

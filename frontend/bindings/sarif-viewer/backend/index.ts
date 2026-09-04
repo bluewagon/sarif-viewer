@@ -7,6 +7,9 @@ export {
 };
 
 export type {
+    AffectedRouteDTO,
+    CodeFlowDTO,
+    CodeFlowStepDTO,
     FindingDTO,
     FindingKey,
     FindingReview,
@@ -15,5 +18,6 @@ export type {
     RunSummaryDTO,
     SARIFDocumentDTO,
     SnippetSummaryDTO,
-    SourceSelectionDTO
+    SourceSelectionDTO,
+    ThreadFlowDTO
 } from "./models.js";

@@ -1,4 +1,4 @@
-import type {FindingDTO, FindingReview} from '../../../bindings/sarif-viewer/backend/models'
+import type {FindingDTO, FindingReview, LocationDTO} from '../../../bindings/sarif-viewer/backend/models'
 
 export const PAGE_SIZE = 100
 export const severities = ['critical', 'high', 'medium', 'low', 'informational'] as const
@@ -23,8 +23,12 @@ export function titleCase(value: string): string {
 }
 
 export function locationLabel(finding: FindingDTO): string {
-  const {uri, startLine, startColumn} = finding.location
-  if (!uri) return 'No location provided'
+  return physicalLocationLabel(finding.location) || 'No location provided'
+}
+
+export function physicalLocationLabel(location: LocationDTO): string {
+  const {uri, startLine, startColumn} = location
+  if (!uri) return startLine ? `Line ${startLine}${startColumn ? `:${startColumn}` : ''}` : ''
   if (!startLine) return uri
   return `${uri}:${startLine}${startColumn ? `:${startColumn}` : ''}`
 }

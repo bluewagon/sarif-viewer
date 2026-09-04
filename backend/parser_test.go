@@ -100,6 +100,116 @@ func TestLoadSARIFNormalizesRunsRulesMessagesAndLocations(t *testing.T) {
 	}
 }
 
+func TestLoadSARIFNormalizesThreatHoundMetadataAndCodeFlows(t *testing.T) {
+	path := writeTestFile(t, "threathound.sarif", `{
+  "version": "2.1.0",
+  "runs": [{
+    "originalUriBaseIds": {"ROOT": {"uri": "file:///repo/"}},
+    "tool": {"driver": {"name": "ThreatHound"}},
+    "threadFlowLocations": [{
+      "location": {
+        "message": {"text": "Value reaches the cached call"},
+        "physicalLocation": {
+          "artifactLocation": {"uri": "src/cached.go", "uriBaseId": "ROOT"},
+          "region": {"startLine": 24, "startColumn": 7}
+        }
+      },
+      "executionOrder": 99,
+      "nestingLevel": 1
+    }],
+    "results": [{
+      "ruleId": "TH001",
+      "message": {"text": "Untrusted input reaches a sink"},
+      "fingerprints": {"threathound/findingId/v1": "finding-123"},
+      "properties": {
+        "threathound/isReachable": {"reachable": false},
+        "threathound/vulnerabilityEvidence": "Input is copied without validation.\nThe sink executes on every request.",
+        "threathound/affectedRoute": {"route": "/api/orders/:id", "method": "post"}
+      },
+      "codeFlows": [{
+        "message": {"text": "Request data reaches the command runner"},
+        "threadFlows": [{
+          "id": "request-thread",
+          "message": {"markdown": "Request processing"},
+          "locations": [{
+            "location": {
+              "message": {"text": "Read the route parameter"},
+              "physicalLocation": {
+                "artifactLocation": {"uri": "src/routes.go", "uriBaseId": "ROOT"},
+                "region": {"startLine": 10, "startColumn": 3, "endLine": 10, "endColumn": 18}
+              }
+            },
+            "executionOrder": 1
+          }, {
+            "index": 0,
+            "executionOrder": 2,
+            "nestingLevel": 2
+          }, {
+            "location": {"message": {"text": "Invoke the vulnerable sink"}},
+            "executionOrder": 3
+          }]
+        }, {
+          "id": "audit-thread",
+          "locations": [{"location": {"message": {"text": "Record the request"}}}]
+        }]
+      }, {
+        "threadFlows": [{"message": {"text": "Alternate flow"}, "locations": []}]
+      }]
+    }, {
+      "ruleId": "TH002",
+      "message": {"text": "Optional metadata is malformed"},
+      "fingerprints": {"threathound/findingId/v1": false},
+      "properties": {
+        "threathound/isReachable": {"reachable": "false"},
+        "threathound/vulnerabilityEvidence": {},
+        "threathound/affectedRoute": "not-an-object"
+      },
+      "codeFlows": {"threadFlows": []}
+    }]
+  }]
+}`)
+
+	document, err := NewSARIFService().LoadSARIF(path, SourceSelectionDTO{Kind: "none", ContextLines: 3})
+	if err != nil {
+		t.Fatalf("LoadSARIF() error = %v", err)
+	}
+	finding := document.Findings[0]
+	if finding.FindingID != "finding-123" || finding.IsReachable == nil || *finding.IsReachable {
+		t.Fatalf("unexpected finding identity/reachability: %+v", finding)
+	}
+	if finding.VulnerabilityEvidence != "Input is copied without validation.\nThe sink executes on every request." {
+		t.Fatalf("unexpected evidence: %q", finding.VulnerabilityEvidence)
+	}
+	if finding.AffectedRoute.Method != "post" || finding.AffectedRoute.Route != "/api/orders/:id" {
+		t.Fatalf("unexpected route: %+v", finding.AffectedRoute)
+	}
+	if len(finding.CodeFlows) != 2 || finding.CodeFlows[0].Message != "Request data reaches the command runner" {
+		t.Fatalf("unexpected code flows: %+v", finding.CodeFlows)
+	}
+	threads := finding.CodeFlows[0].ThreadFlows
+	if len(threads) != 2 || threads[0].ID != "request-thread" || threads[0].Message != "Request processing" {
+		t.Fatalf("unexpected thread flows: %+v", threads)
+	}
+	steps := threads[0].Steps
+	if len(steps) != 3 || steps[0].Message != "Read the route parameter" || steps[0].Location.URI != "file:///repo/src/routes.go" {
+		t.Fatalf("unexpected direct flow step: %+v", steps)
+	}
+	if steps[1].Message != "Value reaches the cached call" || steps[1].Location.URI != "file:///repo/src/cached.go" || steps[1].ExecutionOrder != 2 || steps[1].NestingLevel != 2 {
+		t.Fatalf("cached flow step was not resolved and overridden: %+v", steps[1])
+	}
+	if steps[2].Message != "Invoke the vulnerable sink" || steps[2].Location.URI != "" || steps[2].ExecutionOrder != 3 {
+		t.Fatalf("message-only flow step was not retained: %+v", steps[2])
+	}
+	if threads[1].Steps[0].ExecutionOrder != -1 {
+		t.Fatalf("missing execution order = %d, want -1", threads[1].Steps[0].ExecutionOrder)
+	}
+
+	malformed := document.Findings[1]
+	if malformed.FindingID != "" || malformed.IsReachable != nil || malformed.VulnerabilityEvidence != "" || malformed.AffectedRoute != (AffectedRouteDTO{}) || len(malformed.CodeFlows) != 0 {
+		t.Fatalf("malformed optional metadata was not ignored: %+v", malformed)
+	}
+}
+
 func TestSeverityInference(t *testing.T) {
 	tests := []struct {
 		value any

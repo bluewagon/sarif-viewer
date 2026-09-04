@@ -10,9 +10,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 export function ExportSARIF(documentID: string, destination: string, reviews: $models.FindingReview[] | null): $CancellablePromise<void> {
-    return $Call.ByID(1444884537, documentID, destination, reviews);
+    return $Call.ByID(478487231, documentID, destination, reviews);
 }
 
 export function LoadSARIF(path: string, source: $models.SourceSelectionDTO): $CancellablePromise<$models.SARIFDocumentDTO> {
-    return $Call.ByID(127111507, path, source);
+    return $Call.ByID(3609641173, path, source);
 }
