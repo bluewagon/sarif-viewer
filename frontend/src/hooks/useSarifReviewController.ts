@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useState} from 'react'
 import {Browser, Dialogs} from '@wailsio/runtime'
-import {SARIFService} from '../../bindings/sastafras/backend'
-import type {FindingDTO, FindingReview, SARIFDocumentDTO, SourceSelectionDTO} from '../../bindings/sastafras/backend/models'
+import {SARIFService} from '../../bindings/sarif-viewer/backend'
+import type {FindingDTO, FindingReview, SARIFDocumentDTO, SourceSelectionDTO} from '../../bindings/sarif-viewer/backend/models'
 import {createSourcePrompt, validateSourceSelection, type SourcePrompt} from '../features/import/model'
 import {
   effectiveReview,

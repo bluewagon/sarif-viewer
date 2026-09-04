@@ -1,4 +1,4 @@
-import type {FindingDTO, SARIFDocumentDTO} from '../../../bindings/sastafras/backend/models'
+import type {FindingDTO, SARIFDocumentDTO} from '../../../bindings/sarif-viewer/backend/models'
 import {icons} from '../../components/icons'
 import {
   dispositions,

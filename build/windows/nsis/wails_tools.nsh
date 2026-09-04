@@ -5,19 +5,19 @@
 !include "FileFunc.nsh"
 
 !ifndef INFO_PROJECTNAME
-    !define INFO_PROJECTNAME "sastafras"
+    !define INFO_PROJECTNAME "sarif-viewer"
 !endif
 !ifndef INFO_COMPANYNAME
-    !define INFO_COMPANYNAME "Sastafras"
+    !define INFO_COMPANYNAME "SARIF Viewer"
 !endif
 !ifndef INFO_PRODUCTNAME
-    !define INFO_PRODUCTNAME "Sastafras"
+    !define INFO_PRODUCTNAME "SARIF Viewer"
 !endif
 !ifndef INFO_PRODUCTVERSION
     !define INFO_PRODUCTVERSION "0.0.1"
 !endif
 !ifndef INFO_COPYRIGHT
-    !define INFO_COPYRIGHT "(c) 2026 Sastafras"
+    !define INFO_COPYRIGHT "(c) 2026 SARIF Viewer"
 !endif
 !ifndef PRODUCT_EXECUTABLE
     !define PRODUCT_EXECUTABLE "${INFO_PROJECTNAME}.exe"

@@ -83,7 +83,7 @@ func prepareSource(source SourceSelectionDTO, document map[string]any) (sourcePr
 		provider, err := newLocalSource(source.Location)
 		return provider, "", err
 	case "git":
-		temporaryRoot, err := os.MkdirTemp("", "sastafras-source-")
+		temporaryRoot, err := os.MkdirTemp("", "sarif-viewer-source-")
 		if err != nil {
 			return nil, "", fmt.Errorf("create temporary source folder: %w", err)
 		}

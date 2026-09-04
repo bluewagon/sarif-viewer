@@ -1,4 +1,4 @@
-import type {FindingDTO} from '../../../bindings/sastafras/backend/models'
+import type {FindingDTO} from '../../../bindings/sarif-viewer/backend/models'
 
 interface SnippetViewProps {
   finding: FindingDTO

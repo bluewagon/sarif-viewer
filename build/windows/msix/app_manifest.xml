@@ -8,14 +8,14 @@
   IgnorableNamespaces="uap3">
   
   <Identity 
-    Name="app.sastafras.desktop"
-    Publisher="CN=Sastafras"
+    Name="app.sarif-viewer.desktop"
+    Publisher="CN=SARIF Viewer"
     Version="0.1.0.0" 
     ProcessorArchitecture="arm64" />
   
   <Properties>
-    <DisplayName>Sastafras</DisplayName>
-    <PublisherDisplayName>Sastafras</PublisherDisplayName>
+    <DisplayName>SARIF Viewer</DisplayName>
+    <PublisherDisplayName>SARIF Viewer</PublisherDisplayName>
     <Description>Review and annotate findings from SARIF files</Description>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -29,9 +29,9 @@
   </Resources>
   
   <Applications>
-    <Application Id="app.sastafras.desktop" Executable="sastafras" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="app.sarif-viewer.desktop" Executable="sarif-viewer" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="Sastafras"
+        DisplayName="SARIF Viewer"
         Description="Review and annotate findings from SARIF files"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
@@ -41,7 +41,7 @@
       </uap:VisualElements>
       
       <Extensions>
-        <desktop:Extension Category="windows.fullTrustProcess" Executable="sastafras" />
+        <desktop:Extension Category="windows.fullTrustProcess" Executable="sarif-viewer" />
         
         
       </Extensions>

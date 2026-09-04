@@ -1,4 +1,4 @@
-module sastafras
+module sarif-viewer
 
 go 1.25.0
 

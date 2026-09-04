@@ -9,7 +9,7 @@ import (
 // Run configures and starts the desktop application.
 func Run(assets fs.FS) error {
 	app := application.New(application.Options{
-		Name:        "Sastafras",
+		Name:        "SARIF Viewer",
 		Description: "Review and annotate findings from SARIF files",
 		Services: []application.Service{
 			application.NewService(NewSARIFService()),
@@ -23,7 +23,7 @@ func Run(assets fs.FS) error {
 	})
 
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:     "Sastafras",
+		Title:     "SARIF Viewer",
 		Width:     1440,
 		Height:    900,
 		MinWidth:  980,

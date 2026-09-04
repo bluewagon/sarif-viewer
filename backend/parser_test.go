@@ -66,7 +66,7 @@ func TestLoadSARIFNormalizesRunsRulesMessagesAndLocations(t *testing.T) {
         "ruleId": "INFO",
         "level": "none",
         "message": {"markdown": "Informational result"},
-        "properties": {"sastafras": {
+        "properties": {"sarif-viewer": {
           "severity": "low",
           "disposition": "confirmed",
           "comment": "Expected review",

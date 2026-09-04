@@ -9,7 +9,7 @@ import (
 
 func writeJSONAtomic(path string, document map[string]any) (returnErr error) {
 	directory := filepath.Dir(path)
-	temporary, err := os.CreateTemp(directory, ".sastafras-*.tmp")
+	temporary, err := os.CreateTemp(directory, ".sarif-viewer-*.tmp")
 	if err != nil {
 		return err
 	}

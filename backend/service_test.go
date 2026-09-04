@@ -15,7 +15,7 @@ func TestExportSARIFMergesReviewsAndPreservesUnknownContent(t *testing.T) {
   "runs":[{"tool":{"driver":{"name":"Tool"}},"results":[{
     "ruleId":"R1","level":"warning","message":{"text":"Finding"},
     "unknownResult":[1,2,3],
-    "properties":{"owner":"security","sastafras":{"custom":"keep"}}
+    "properties":{"owner":"security","sarif-viewer":{"custom":"keep"}}
   }]}]
 }`)
 	document, err := service.LoadSARIF(source, SourceSelectionDTO{Kind: "none", ContextLines: 3})
@@ -48,7 +48,7 @@ func TestExportSARIFMergesReviewsAndPreservesUnknownContent(t *testing.T) {
 	if firstString(result["level"]) != "error" || nestedValue(result, "properties", "owner") != "security" {
 		t.Fatalf("standard or existing properties were not retained: %+v", result)
 	}
-	metadata, _ := objectValue(nestedValue(result, "properties", "sastafras"))
+	metadata, _ := objectValue(nestedValue(result, "properties", "sarif-viewer"))
 	if metadata["custom"] != "keep" || metadata["comment"] != "Accepted test fixture" || metadata["disposition"] != "false-positive" {
 		t.Fatalf("review metadata was not merged: %+v", metadata)
 	}

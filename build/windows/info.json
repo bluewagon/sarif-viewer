@@ -5,10 +5,10 @@
 	"info": {
 		"0000": {
 			"ProductVersion": "0.0.1",
-			"CompanyName": "Sastafras",
+			"CompanyName": "SARIF Viewer",
 			"FileDescription": "Review and annotate findings from SARIF files",
-			"LegalCopyright": "(c) 2026 Sastafras",
-			"ProductName": "Sastafras",
+			"LegalCopyright": "(c) 2026 SARIF Viewer",
+			"ProductName": "SARIF Viewer",
 			"Comments": "Local SARIF review application"
 		}
 	}

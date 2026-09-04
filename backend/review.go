@@ -15,8 +15,10 @@ var validDispositions = map[string]bool{
 	"unreviewed": true, "confirmed": true, "false-positive": true,
 }
 
+const reviewMetadataKey = "sarif-viewer"
+
 func reviewValues(result, rule map[string]any, level string) (string, string, string, string) {
-	metadata, _ := objectValue(nestedValue(result, "properties", "sastafras"))
+	metadata, _ := objectValue(nestedValue(result, "properties", reviewMetadataKey))
 	severity := firstString(metadata["severity"])
 	if !validSeverities[severity] {
 		severity = severityFromScore(firstNonNil(nestedValue(result, "properties", "security-severity"), nestedValue(rule, "properties", "security-severity")))
@@ -110,10 +112,10 @@ func mergeReviewMetadata(result map[string]any, review FindingReview) {
 		properties = map[string]any{}
 		result["properties"] = properties
 	}
-	metadata, ok := objectValue(properties["sastafras"])
+	metadata, ok := objectValue(properties[reviewMetadataKey])
 	if !ok {
 		metadata = map[string]any{}
-		properties["sastafras"] = metadata
+		properties[reviewMetadataKey] = metadata
 	}
 	metadata["severity"] = review.Severity
 	metadata["disposition"] = review.Disposition

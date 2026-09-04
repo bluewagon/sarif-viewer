@@ -1,4 +1,4 @@
-import type {SourceSelectionDTO} from '../../../bindings/sastafras/backend/models'
+import type {SourceSelectionDTO} from '../../../bindings/sarif-viewer/backend/models'
 import {icons} from '../../components/icons'
 import {
   emptyGitAuthentication,

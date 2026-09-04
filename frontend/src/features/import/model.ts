@@ -1,4 +1,4 @@
-import type {GitAuthenticationDTO, SourceSelectionDTO} from '../../../bindings/sastafras/backend/models'
+import type {GitAuthenticationDTO, SourceSelectionDTO} from '../../../bindings/sarif-viewer/backend/models'
 
 export type SourceKind = 'local' | 'git'
 export type GitProvider = 'existing' | 'github' | 'bitbucket' | 'azure-devops'

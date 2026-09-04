@@ -4,7 +4,7 @@ import (
 	"embed"
 	"log"
 
-	"sastafras/backend"
+	"sarif-viewer/backend"
 )
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.

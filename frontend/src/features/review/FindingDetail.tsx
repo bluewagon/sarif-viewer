@@ -1,4 +1,4 @@
-import type {FindingDTO, FindingReview} from '../../../bindings/sastafras/backend/models'
+import type {FindingDTO, FindingReview} from '../../../bindings/sarif-viewer/backend/models'
 import {icons} from '../../components/icons'
 import {dispositions, locationLabel, severities, titleCase, type Draft} from './model'
 import {SnippetView} from './SnippetView'

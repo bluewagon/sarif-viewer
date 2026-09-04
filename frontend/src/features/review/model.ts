@@ -1,4 +1,4 @@
-import type {FindingDTO, FindingReview} from '../../../bindings/sastafras/backend/models'
+import type {FindingDTO, FindingReview} from '../../../bindings/sarif-viewer/backend/models'
 
 export const PAGE_SIZE = 100
 export const severities = ['critical', 'high', 'medium', 'low', 'informational'] as const

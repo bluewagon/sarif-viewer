@@ -1,4 +1,4 @@
-import type {SARIFDocumentDTO} from '../../../bindings/sastafras/backend/models'
+import type {SARIFDocumentDTO} from '../../../bindings/sarif-viewer/backend/models'
 import {icons} from '../../components/icons'
 import {severities, titleCase, type ReviewSummary, type Severity} from './model'
 

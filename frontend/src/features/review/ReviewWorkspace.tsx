@@ -1,4 +1,4 @@
-import type {FindingDTO, FindingReview, SARIFDocumentDTO} from '../../../bindings/sastafras/backend/models'
+import type {FindingDTO, FindingReview, SARIFDocumentDTO} from '../../../bindings/sarif-viewer/backend/models'
 import {DocumentSummary} from './DocumentSummary'
 import {FindingBrowser} from './FindingBrowser'
 import {FindingDetail} from './FindingDetail'

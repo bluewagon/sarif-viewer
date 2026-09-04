@@ -5,11 +5,11 @@ version: '3'
 
 # This information is used to generate the build assets.
 info:
-  companyName: "Sastafras"
-  productName: "Sastafras"
-  productIdentifier: "app.sastafras.desktop"
+  companyName: "SARIF Viewer"
+  productName: "SARIF Viewer"
+  productIdentifier: "app.sarif-viewer.desktop"
   description: "Review and annotate findings from SARIF files"
-  copyright: "(c) 2026 Sastafras"
+  copyright: "(c) 2026 SARIF Viewer"
   comments: "Local SARIF review application"
   version: "0.0.1" # The application version
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)

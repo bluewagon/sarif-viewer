@@ -2,7 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {cleanup, render, screen, waitFor, within} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
-import type {FindingDTO, SARIFDocumentDTO} from '../bindings/sastafras/backend/models'
+import type {FindingDTO, SARIFDocumentDTO} from '../bindings/sarif-viewer/backend/models'
 
 const mocks = vi.hoisted(() => ({
   openFile: vi.fn(),
@@ -18,7 +18,7 @@ vi.mock('@wailsio/runtime', () => ({
   Browser: {OpenURL: mocks.openURL},
 }))
 
-vi.mock('../bindings/sastafras/backend', () => ({
+vi.mock('../bindings/sarif-viewer/backend', () => ({
   SARIFService: {LoadSARIF: mocks.loadSARIF, ExportSARIF: mocks.exportSARIF},
 }))
 
@@ -70,7 +70,7 @@ function resultCount(value: string) {
   return screen.getByText((_, element) => element?.classList.contains('result-count') === true && element.textContent === value)
 }
 
-describe('Sastafras review workspace', () => {
+describe('SARIF Viewer review workspace', () => {
   afterEach(cleanup)
 
   beforeEach(() => {
