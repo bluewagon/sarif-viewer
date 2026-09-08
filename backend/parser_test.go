@@ -70,7 +70,7 @@ func TestLoadSARIFNormalizesRunsRulesMessagesAndLocations(t *testing.T) {
           "severity": "low",
           "status": "confirmed",
           "rationale": "Expected review",
-          "reviewedAt": "2026-09-02T12:30:00Z"
+          "reviewed_at": "2026-09-02T12:30:00Z"
         }}
       }]
     }

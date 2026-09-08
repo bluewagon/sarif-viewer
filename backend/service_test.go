@@ -62,7 +62,7 @@ func TestExportSARIFMergesReviewsAndPreservesUnknownContent(t *testing.T) {
 		t.Fatalf("existing application metadata was not preserved: %+v", legacyMetadata)
 	}
 	metadata, _ := objectValue(nestedValue(result, "properties", "threathound/reviewStatus"))
-	if metadata["rationale"] != "Accepted test fixture" || metadata["reviewer"] != "security-reviewer" || metadata["status"] != "false-positive" {
+	if metadata["rationale"] != "Accepted test fixture" || metadata["reviewer"] != "security-reviewer" || metadata["status"] != "false-positive" || metadata["reviewed_at"] != "2026-09-02T12:30:00Z" {
 		t.Fatalf("review metadata was not merged: %+v", metadata)
 	}
 	if _, exists := metadata["comment"]; exists {
@@ -70,6 +70,9 @@ func TestExportSARIFMergesReviewsAndPreservesUnknownContent(t *testing.T) {
 	}
 	if _, exists := metadata["disposition"]; exists {
 		t.Fatalf("legacy disposition key was written: %+v", metadata)
+	}
+	if _, exists := metadata["reviewedAt"]; exists {
+		t.Fatalf("legacy reviewedAt key was written: %+v", metadata)
 	}
 }
 

@@ -63,7 +63,7 @@ Reviewed results retain their original SARIF content and add an application-owne
       "status": "confirmed",
       "rationale": "Validated the unsafe data flow.",
       "reviewer": "security-reviewer",
-      "reviewedAt": "2026-09-02T12:30:00Z"
+      "reviewed_at": "2026-09-02T12:30:00Z"
     }
   }
 }

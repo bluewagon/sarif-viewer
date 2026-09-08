@@ -30,7 +30,7 @@ func reviewValues(result, rule map[string]any, level string) (string, string, st
 	if !validDispositions[disposition] {
 		disposition = "unreviewed"
 	}
-	return severity, disposition, firstString(metadata["rationale"]), firstString(metadata["reviewedAt"])
+	return severity, disposition, firstString(metadata["rationale"]), firstString(metadata["reviewed_at"])
 }
 
 func severityFromScore(value any) string {
@@ -121,5 +121,5 @@ func mergeReviewMetadata(result map[string]any, review FindingReview) {
 	metadata["status"] = review.Disposition
 	metadata["rationale"] = review.Comment
 	metadata["reviewer"] = review.Reviewer
-	metadata["reviewedAt"] = review.ReviewedAt
+	metadata["reviewed_at"] = review.ReviewedAt
 }
