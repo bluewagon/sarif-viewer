@@ -1,5 +1,6 @@
 import {AppHeader} from './components/AppHeader'
 import {FeedbackBanner} from './components/FeedbackBanner'
+import {ReviewerDialog} from './components/ReviewerDialog'
 import {Welcome} from './components/Welcome'
 import {SourceImportModal} from './features/import/SourceImportModal'
 import {ReviewWorkspace} from './features/review/ReviewWorkspace'
@@ -15,6 +16,8 @@ function App() {
       loading={controller.loading}
       onOpen={controller.openSARIF}
       onExport={controller.exportSARIF}
+      reviewer={controller.reviewer}
+      onEditReviewer={controller.editReviewer}
     />
     {controller.feedback && <FeedbackBanner feedback={controller.feedback} onDismiss={controller.dismissFeedback}/>}
     {controller.sourcePrompt && <SourceImportModal
@@ -55,6 +58,14 @@ function App() {
       onResetDraft={controller.resetDraft}
       onApplyReview={controller.applyReview}
       onOpenHelp={controller.openHelp}
+    />}
+    {controller.reviewerDialogOpen && <ReviewerDialog
+      value={controller.reviewerDraft}
+      error={controller.reviewerError}
+      canCancel={Boolean(controller.reviewer)}
+      onChange={controller.setReviewerDraft}
+      onConfirm={controller.confirmReviewer}
+      onCancel={controller.cancelReviewerEdit}
     />}
   </div>
 }

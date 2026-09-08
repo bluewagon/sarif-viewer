@@ -105,6 +105,7 @@ type FindingReview struct {
 	Severity    string `json:"severity"`
 	Disposition string `json:"disposition"`
 	Comment     string `json:"comment"`
+	Reviewer    string `json:"reviewer"`
 	ReviewedAt  string `json:"reviewedAt"`
 }
 

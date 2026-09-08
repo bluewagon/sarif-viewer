@@ -1,6 +1,6 @@
 # SARIF Viewer
 
-SARIF Viewer is a local desktop application for reviewing findings in SARIF 2.1.0 files. It combines findings from every run, provides search and triage filters, and lets a reviewer assign a security severity, disposition, and required comment before exporting a separate reviewed SARIF file.
+SARIF Viewer is a local desktop application for reviewing findings in SARIF 2.1.0 files. It combines findings from every run, provides search and triage filters, and lets a reviewer assign a security severity, status, and required rationale before exporting a separate reviewed SARIF file.
 
 SARIF Viewer supports macOS and Windows desktop builds.
 
@@ -58,10 +58,11 @@ Reviewed results retain their original SARIF content and add an application-owne
 ```json
 {
   "properties": {
-    "sarif-viewer": {
+    "threathound/reviewStatus": {
       "severity": "high",
-      "disposition": "confirmed",
-      "comment": "Validated the unsafe data flow.",
+      "status": "confirmed",
+      "rationale": "Validated the unsafe data flow.",
+      "reviewer": "security-reviewer",
       "reviewedAt": "2026-09-02T12:30:00Z"
     }
   }

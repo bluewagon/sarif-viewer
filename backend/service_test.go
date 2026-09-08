@@ -27,7 +27,7 @@ func TestExportSARIFMergesReviewsAndPreservesUnknownContent(t *testing.T) {
 	destination := filepath.Join(t.TempDir(), "reviewed.sarif")
 	review := FindingReview{
 		RunIndex: 0, ResultIndex: 0, Severity: "critical", Disposition: "false-positive",
-		Comment: "  Accepted test fixture  ", ReviewedAt: "2026-09-02T12:30:00Z",
+		Comment: "  Accepted test fixture  ", Reviewer: "  security-reviewer  ", ReviewedAt: "2026-09-02T12:30:00Z",
 	}
 	if err := service.ExportSARIF(document.DocumentID, destination, []FindingReview{review}); err != nil {
 		t.Fatalf("ExportSARIF() error = %v", err)
@@ -57,9 +57,19 @@ func TestExportSARIFMergesReviewsAndPreservesUnknownContent(t *testing.T) {
 	if len(codeFlows) != 1 || nestedValue(codeFlows[0], "threadFlows") == nil {
 		t.Fatalf("code flows were not preserved: %+v", result["codeFlows"])
 	}
-	metadata, _ := objectValue(nestedValue(result, "properties", "sarif-viewer"))
-	if metadata["custom"] != "keep" || metadata["comment"] != "Accepted test fixture" || metadata["disposition"] != "false-positive" {
+	legacyMetadata, _ := objectValue(nestedValue(result, "properties", "sarif-viewer"))
+	if legacyMetadata["custom"] != "keep" {
+		t.Fatalf("existing application metadata was not preserved: %+v", legacyMetadata)
+	}
+	metadata, _ := objectValue(nestedValue(result, "properties", "threathound/reviewStatus"))
+	if metadata["rationale"] != "Accepted test fixture" || metadata["reviewer"] != "security-reviewer" || metadata["status"] != "false-positive" {
 		t.Fatalf("review metadata was not merged: %+v", metadata)
+	}
+	if _, exists := metadata["comment"]; exists {
+		t.Fatalf("legacy comment key was written: %+v", metadata)
+	}
+	if _, exists := metadata["disposition"]; exists {
+		t.Fatalf("legacy disposition key was written: %+v", metadata)
 	}
 }
 
@@ -70,7 +80,7 @@ func TestExportSARIFValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	valid := FindingReview{RunIndex: 0, ResultIndex: 0, Severity: "high", Disposition: "confirmed", Comment: "Reviewed", ReviewedAt: "2026-09-02T12:30:00Z"}
+	valid := FindingReview{RunIndex: 0, ResultIndex: 0, Severity: "high", Disposition: "confirmed", Comment: "Reviewed", Reviewer: "reviewer", ReviewedAt: "2026-09-02T12:30:00Z"}
 	tests := []struct {
 		name        string
 		documentID  string
@@ -80,9 +90,10 @@ func TestExportSARIFValidation(t *testing.T) {
 	}{
 		{name: "stale document", documentID: "wrong", destination: filepath.Join(t.TempDir(), "out.sarif"), reviews: []FindingReview{valid}, want: "document has changed"},
 		{name: "same path", documentID: document.DocumentID, destination: source, reviews: []FindingReview{valid}, want: "different file"},
-		{name: "blank comment", documentID: document.DocumentID, destination: filepath.Join(t.TempDir(), "out.sarif"), reviews: []FindingReview{{RunIndex: 0, ResultIndex: 0, Severity: "high", Disposition: "confirmed", Comment: "  ", ReviewedAt: valid.ReviewedAt}}, want: "requires a comment"},
-		{name: "invalid key", documentID: document.DocumentID, destination: filepath.Join(t.TempDir(), "out.sarif"), reviews: []FindingReview{{RunIndex: 0, ResultIndex: 99, Severity: "high", Disposition: "confirmed", Comment: "Reviewed", ReviewedAt: valid.ReviewedAt}}, want: "does not exist"},
-		{name: "invalid timestamp", documentID: document.DocumentID, destination: filepath.Join(t.TempDir(), "out.sarif"), reviews: []FindingReview{{RunIndex: 0, ResultIndex: 0, Severity: "high", Disposition: "confirmed", Comment: "Reviewed", ReviewedAt: "today"}}, want: "invalid review timestamp"},
+		{name: "blank reviewer", documentID: document.DocumentID, destination: filepath.Join(t.TempDir(), "out.sarif"), reviews: []FindingReview{{RunIndex: 0, ResultIndex: 0, Severity: "high", Disposition: "confirmed", Comment: "Reviewed", Reviewer: "  ", ReviewedAt: valid.ReviewedAt}}, want: "requires a reviewer"},
+		{name: "blank comment", documentID: document.DocumentID, destination: filepath.Join(t.TempDir(), "out.sarif"), reviews: []FindingReview{{RunIndex: 0, ResultIndex: 0, Severity: "high", Disposition: "confirmed", Comment: "  ", Reviewer: valid.Reviewer, ReviewedAt: valid.ReviewedAt}}, want: "requires a comment"},
+		{name: "invalid key", documentID: document.DocumentID, destination: filepath.Join(t.TempDir(), "out.sarif"), reviews: []FindingReview{{RunIndex: 0, ResultIndex: 99, Severity: "high", Disposition: "confirmed", Comment: "Reviewed", Reviewer: valid.Reviewer, ReviewedAt: valid.ReviewedAt}}, want: "does not exist"},
+		{name: "invalid timestamp", documentID: document.DocumentID, destination: filepath.Join(t.TempDir(), "out.sarif"), reviews: []FindingReview{{RunIndex: 0, ResultIndex: 0, Severity: "high", Disposition: "confirmed", Comment: "Reviewed", Reviewer: valid.Reviewer, ReviewedAt: "today"}}, want: "invalid review timestamp"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

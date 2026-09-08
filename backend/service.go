@@ -157,6 +157,10 @@ func (s *SARIFService) ExportSARIF(documentID, destination string, reviews []Fin
 		if !validDispositions[review.Disposition] {
 			return fmt.Errorf("finding %d:%d has an invalid disposition", key.RunIndex, key.ResultIndex)
 		}
+		review.Reviewer = strings.TrimSpace(review.Reviewer)
+		if review.Reviewer == "" {
+			return fmt.Errorf("finding %d:%d requires a reviewer", key.RunIndex, key.ResultIndex)
+		}
 		review.Comment = strings.TrimSpace(review.Comment)
 		if review.Comment == "" {
 			return fmt.Errorf("finding %d:%d requires a comment", key.RunIndex, key.ResultIndex)

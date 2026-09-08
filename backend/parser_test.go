@@ -66,10 +66,10 @@ func TestLoadSARIFNormalizesRunsRulesMessagesAndLocations(t *testing.T) {
         "ruleId": "INFO",
         "level": "none",
         "message": {"markdown": "Informational result"},
-        "properties": {"sarif-viewer": {
+        "properties": {"threathound/reviewStatus": {
           "severity": "low",
-          "disposition": "confirmed",
-          "comment": "Expected review",
+          "status": "confirmed",
+          "rationale": "Expected review",
           "reviewedAt": "2026-09-02T12:30:00Z"
         }}
       }]

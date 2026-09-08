@@ -3,6 +3,7 @@ import {cleanup, render, screen, waitFor, within} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import type {FindingDTO, SARIFDocumentDTO} from '../bindings/sarif-viewer/backend/models'
+import {REVIEWER_STORAGE_KEY} from './hooks/useSarifReviewController'
 
 const mocks = vi.hoisted(() => ({
   openFile: vi.fn(),
@@ -71,6 +72,14 @@ async function openDocument(document = sarifDocument()) {
   await screen.findByRole('heading', {name: 'scan.sarif'})
 }
 
+async function startApp(username = 'security-reviewer') {
+  window.localStorage.setItem(REVIEWER_STORAGE_KEY, username)
+  render(<App/>)
+  const dialog = screen.getByRole('dialog', {name: 'Who is reviewing these findings?'})
+  expect(within(dialog).getByRole('textbox', {name: 'Username'})).toHaveValue(username)
+  await userEvent.click(within(dialog).getByRole('button', {name: 'Continue as reviewer'}))
+}
+
 function resultCount(value: string) {
   return screen.getByText((_, element) => element?.classList.contains('result-count') === true && element.textContent === value)
 }
@@ -79,6 +88,7 @@ describe('SARIF Viewer review workspace', () => {
   afterEach(cleanup)
 
   beforeEach(() => {
+    window.localStorage.clear()
     Object.values(mocks).forEach((mock) => mock.mockReset())
     mocks.openFile.mockResolvedValue('')
     mocks.saveFile.mockResolvedValue('')
@@ -86,8 +96,33 @@ describe('SARIF Viewer review workspace', () => {
     mocks.exportSARIF.mockResolvedValue(undefined)
   })
 
-  it('shows the private local-review welcome state and handles a cancelled picker', async () => {
+  it('requires, remembers, and allows editing the reviewer username', async () => {
+    window.localStorage.setItem(REVIEWER_STORAGE_KEY, 'saved-reviewer')
     render(<App/>)
+
+    const dialog = screen.getByRole('dialog', {name: 'Who is reviewing these findings?'})
+    const username = within(dialog).getByRole('textbox', {name: 'Username'})
+    expect(username).toHaveValue('saved-reviewer')
+    await userEvent.clear(username)
+    await userEvent.click(within(dialog).getByRole('button', {name: 'Continue as reviewer'}))
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Enter your username')
+
+    await userEvent.type(username, '  first-reviewer  ')
+    await userEvent.click(within(dialog).getByRole('button', {name: 'Continue as reviewer'}))
+    expect(window.localStorage.getItem(REVIEWER_STORAGE_KEY)).toBe('first-reviewer')
+
+    await userEvent.click(screen.getByRole('button', {name: 'Change reviewer, currently first-reviewer'}))
+    const editedUsername = screen.getByRole('textbox', {name: 'Username'})
+    expect(editedUsername).toHaveValue('first-reviewer')
+    await userEvent.clear(editedUsername)
+    await userEvent.type(editedUsername, 'second-reviewer')
+    await userEvent.click(screen.getByRole('button', {name: 'Continue as reviewer'}))
+    expect(screen.getByRole('button', {name: 'Change reviewer, currently second-reviewer'})).toBeVisible()
+    expect(window.localStorage.getItem(REVIEWER_STORAGE_KEY)).toBe('second-reviewer')
+  })
+
+  it('shows the private local-review welcome state and handles a cancelled picker', async () => {
+    await startApp()
     expect(screen.getByRole('heading', {name: /Turn scan output intodecisions/})).toBeVisible()
     expect(screen.getByText('Your files and reviews stay on this device.')).toBeVisible()
     await userEvent.click(screen.getByRole('button', {name: 'Open SARIF file'}))
@@ -96,7 +131,7 @@ describe('SARIF Viewer review workspace', () => {
   })
 
   it('shows a parse error without leaving the welcome state', async () => {
-    render(<App/>)
+    await startApp()
     mocks.openFile.mockResolvedValue('/tmp/bad.sarif')
     mocks.loadSARIF.mockRejectedValue(new Error('unsupported SARIF version'))
     await userEvent.click(screen.getByRole('button', {name: 'Open SARIF file'}))
@@ -106,7 +141,7 @@ describe('SARIF Viewer review workspace', () => {
   })
 
 	it('loads source from a selected local folder with configurable context', async () => {
-		render(<App/>)
+		await startApp()
 		mocks.openFile.mockResolvedValueOnce('/tmp/scan.sarif').mockResolvedValueOnce('/tmp/project')
 		mocks.loadSARIF.mockResolvedValue(sarifDocument())
 		await userEvent.click(screen.getByRole('button', {name: 'Open SARIF file'}))
@@ -122,7 +157,7 @@ describe('SARIF Viewer review workspace', () => {
 	})
 
 	it('submits GitHub PAT credentials once and clears the token after an import error', async () => {
-		render(<App/>)
+		await startApp()
 		mocks.openFile.mockResolvedValue('/tmp/scan.sarif')
 		mocks.loadSARIF.mockRejectedValue(new Error('clone Git repository: unavailable'))
 		await userEvent.click(screen.getByRole('button', {name: 'Open SARIF file'}))
@@ -147,7 +182,7 @@ describe('SARIF Viewer review workspace', () => {
 	})
 
 	it('validates PAT fields and clears credentials when changing providers', async () => {
-		render(<App/>)
+		await startApp()
 		mocks.openFile.mockResolvedValue('/tmp/scan.sarif')
 		await userEvent.click(screen.getByRole('button', {name: 'Open SARIF file'}))
 		await userEvent.click(screen.getByRole('tab', {name: 'Git repository'}))
@@ -164,7 +199,7 @@ describe('SARIF Viewer review workspace', () => {
 	})
 
 	it('formats Azure DevOps PAT input without requesting a username', async () => {
-		render(<App/>)
+		await startApp()
 		mocks.openFile.mockResolvedValue('/tmp/scan.sarif')
 		mocks.loadSARIF.mockResolvedValue(sarifDocument())
 		await userEvent.click(screen.getByRole('button', {name: 'Open SARIF file'}))
@@ -181,7 +216,7 @@ describe('SARIF Viewer review workspace', () => {
 	})
 
 	it('retains existing Git authentication for SSH and public repositories', async () => {
-		render(<App/>)
+		await startApp()
 		mocks.openFile.mockResolvedValue('/tmp/scan.sarif')
 		mocks.loadSARIF.mockResolvedValue(sarifDocument())
 		await userEvent.click(screen.getByRole('button', {name: 'Open SARIF file'}))
@@ -197,7 +232,7 @@ describe('SARIF Viewer review workspace', () => {
 	})
 
 	it('cancels source selection without loading the report', async () => {
-		render(<App/>)
+		await startApp()
 		mocks.openFile.mockResolvedValue('/tmp/scan.sarif')
 		await userEvent.click(screen.getByRole('button', {name: 'Open SARIF file'}))
 		await userEvent.click(screen.getByRole('button', {name: 'Cancel'}))
@@ -206,7 +241,7 @@ describe('SARIF Viewer review workspace', () => {
 	})
 
   it('loads findings and filters by text, run, severity, and disposition', async () => {
-    render(<App/>)
+    await startApp()
     await openDocument()
     expect(resultCount('2 findings')).toBeVisible()
     await userEvent.type(screen.getByPlaceholderText('Search findings…'), 'RULE-1')
@@ -233,7 +268,7 @@ describe('SARIF Viewer review workspace', () => {
 			snippetOrigin: 'source',
 			snippetStatus: 'generated',
 		}
-		render(<App/>)
+		await startApp()
 		await openDocument(document)
 		expect(screen.getByText('Generated from source')).toBeVisible()
 		const sourceLine = screen.getByText('unsafe(value)').closest('.code-line')
@@ -271,7 +306,7 @@ describe('SARIF Viewer review workspace', () => {
       }],
     })
 
-    render(<App/>)
+    await startApp()
     await openDocument(document)
 
     expect(screen.getByRole('heading', {name: 'ThreatHound'})).toBeVisible()
@@ -293,7 +328,7 @@ describe('SARIF Viewer review workspace', () => {
   })
 
   it('hides ThreatHound-only sections when metadata is unavailable', async () => {
-    render(<App/>)
+    await startApp()
     await openDocument(sarifDocument(1))
     expect(screen.queryByRole('heading', {name: 'ThreatHound'})).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', {name: 'Vulnerability evidence'})).not.toBeInTheDocument()
@@ -301,7 +336,7 @@ describe('SARIF Viewer review workspace', () => {
   })
 
   it('requires a comment, applies a review, and replaces it on a later edit', async () => {
-    render(<App/>)
+    await startApp()
     await openDocument()
     await userEvent.click(screen.getByRole('radio', {name: 'Confirmed'}))
     await userEvent.click(screen.getByRole('button', {name: 'Apply review'}))
@@ -318,12 +353,39 @@ describe('SARIF Viewer review workspace', () => {
     expect(comment).toHaveValue('Updated reasoning')
   })
 
+  it('anchors review radios to their visible controls', async () => {
+    await startApp()
+    await openDocument()
+
+    const radio = screen.getByRole('radio', {name: 'Confirmed'})
+    const label = radio.closest('label')
+    expect(label).not.toBeNull()
+    expect(getComputedStyle(label!).position).toBe('relative')
+    expect(getComputedStyle(radio).position).toBe('absolute')
+    expect(getComputedStyle(radio).inset).toBe('0px')
+    expect(getComputedStyle(radio).pointerEvents).toBe('auto')
+
+    await userEvent.click(radio)
+    expect(radio).toBeChecked()
+  })
+
   it('exports all applied reviews using the reviewed filename', async () => {
-    render(<App/>)
+    await startApp()
     await openDocument()
     await userEvent.click(screen.getByRole('radio', {name: 'False Positive'}))
     await userEvent.type(screen.getByPlaceholderText(/Explain the reasoning/), 'Test fixture only')
     await userEvent.click(screen.getByRole('button', {name: 'Apply review'}))
+
+    await userEvent.click(screen.getByRole('button', {name: 'Change reviewer, currently security-reviewer'}))
+    const username = screen.getByRole('textbox', {name: 'Username'})
+    await userEvent.clear(username)
+    await userEvent.type(username, 'second-reviewer')
+    await userEvent.click(screen.getByRole('button', {name: 'Continue as reviewer'}))
+    await userEvent.click(screen.getByText('Finding message 1').closest('button')!)
+    await userEvent.click(screen.getByRole('radio', {name: 'Confirmed'}))
+    await userEvent.type(screen.getByPlaceholderText(/Explain the reasoning/), 'Confirmed by second reviewer')
+    await userEvent.click(screen.getByRole('button', {name: 'Apply review'}))
+
     mocks.saveFile.mockResolvedValue('/tmp/scan.reviewed.sarif')
     await userEvent.click(screen.getByRole('button', {name: 'Export'}))
     await waitFor(() => expect(mocks.exportSARIF).toHaveBeenCalledOnce())
@@ -331,13 +393,16 @@ describe('SARIF Viewer review workspace', () => {
     const [documentID, destination, reviews] = mocks.exportSARIF.mock.calls[0]
     expect(documentID).toBe('document-id')
     expect(destination).toBe('/tmp/scan.reviewed.sarif')
-    expect(reviews).toEqual([expect.objectContaining({disposition: 'false-positive', comment: 'Test fixture only'})])
+    expect(reviews).toEqual([
+      expect.objectContaining({disposition: 'false-positive', comment: 'Test fixture only', reviewer: 'security-reviewer'}),
+      expect.objectContaining({disposition: 'confirmed', comment: 'Confirmed by second reviewer', reviewer: 'second-reviewer'}),
+    ])
     expect(await screen.findByText('All changes exported')).toBeVisible()
   })
 
   it('paginates large reports and protects an unapplied draft when changing findings', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
-    render(<App/>)
+    await startApp()
     await openDocument(sarifDocument(101))
     expect(screen.getByText('Page 1 of 2')).toBeVisible()
     await userEvent.click(screen.getByRole('radio', {name: 'Confirmed'}))
@@ -352,7 +417,7 @@ describe('SARIF Viewer review workspace', () => {
   })
 
   it('keeps the loaded report when a replacement file fails to parse', async () => {
-    render(<App/>)
+    await startApp()
     await openDocument()
     mocks.openFile.mockResolvedValue('/tmp/bad.sarif')
     mocks.loadSARIF.mockRejectedValue(new Error('invalid SARIF file'))

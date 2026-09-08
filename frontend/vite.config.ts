@@ -11,6 +11,7 @@ export default defineConfig({
   },
   plugins: [react(), wails("./bindings")],
   test: {
+    css: true,
     environment: "jsdom",
     setupFiles: "./src/setupTests.ts",
   },

@@ -15,6 +15,16 @@ import {
   type ReviewSummary,
 } from '../features/review/model'
 
+export const REVIEWER_STORAGE_KEY = 'sarif-viewer.reviewerUsername'
+
+function savedReviewer(): string {
+  try {
+    return window.localStorage.getItem(REVIEWER_STORAGE_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
 export interface SarifReviewController {
   document: SARIFDocumentDTO | null
   reviews: Map<string, FindingReview>
@@ -36,6 +46,10 @@ export interface SarifReviewController {
   validationError: string
   feedback: Feedback
   dirty: boolean
+  reviewer: string
+  reviewerDraft: string
+  reviewerDialogOpen: boolean
+  reviewerError: string
   sourcePrompt: SourcePrompt | null
   openSARIF: () => Promise<void>
   chooseSourceFolder: () => Promise<void>
@@ -54,6 +68,10 @@ export interface SarifReviewController {
   setPage: (page: number) => void
   setValidationError: (error: string) => void
   setSourcePrompt: (prompt: SourcePrompt | null) => void
+  setReviewerDraft: (reviewer: string) => void
+  confirmReviewer: () => void
+  editReviewer: () => void
+  cancelReviewerEdit: () => void
   dismissFeedback: () => void
 }
 
@@ -71,6 +89,10 @@ export function useSarifReviewController(): SarifReviewController {
   const [validationError, setValidationError] = useState('')
   const [feedback, setFeedback] = useState<Feedback>(null)
   const [dirty, setDirty] = useState(false)
+  const [reviewer, setReviewer] = useState('')
+  const [reviewerDraft, setReviewerDraftValue] = useState(savedReviewer)
+  const [reviewerDialogOpen, setReviewerDialogOpen] = useState(true)
+  const [reviewerError, setReviewerError] = useState('')
   const [sourcePrompt, setSourcePrompt] = useState<SourcePrompt | null>(null)
 
   const findings = useMemo(() => document?.findings ?? [], [document])
@@ -184,6 +206,12 @@ export function useSarifReviewController(): SarifReviewController {
 
   function applyReview() {
     if (!selectedFinding || !draftDirty) return
+    if (!reviewer) {
+      setReviewerDraftValue(savedReviewer())
+      setReviewerError('Enter a username before applying a review.')
+      setReviewerDialogOpen(true)
+      return
+    }
     const comment = draft.comment.trim()
     if (!comment) {
       setValidationError('Add a comment before applying this review.')
@@ -195,6 +223,7 @@ export function useSarifReviewController(): SarifReviewController {
       severity: draft.severity,
       disposition: draft.disposition,
       comment,
+      reviewer,
       reviewedAt: new Date().toISOString(),
     }
     setReviews((current) => new Map(current).set(findingID(review), review))
@@ -238,6 +267,41 @@ export function useSarifReviewController(): SarifReviewController {
     setRunFilter('all')
   }
 
+  function setReviewerDraft(value: string) {
+    setReviewerDraftValue(value)
+    setReviewerError('')
+  }
+
+  function confirmReviewer() {
+    const value = reviewerDraft.trim()
+    if (!value) {
+      setReviewerError('Enter your username to continue.')
+      return
+    }
+    setReviewer(value)
+    setReviewerDraftValue(value)
+    setReviewerError('')
+    setReviewerDialogOpen(false)
+    try {
+      window.localStorage.setItem(REVIEWER_STORAGE_KEY, value)
+    } catch {
+      // Local persistence is optional; the active reviewer remains available in memory.
+    }
+  }
+
+  function editReviewer() {
+    setReviewerDraftValue(reviewer)
+    setReviewerError('')
+    setReviewerDialogOpen(true)
+  }
+
+  function cancelReviewerEdit() {
+    if (!reviewer) return
+    setReviewerDraftValue(reviewer)
+    setReviewerError('')
+    setReviewerDialogOpen(false)
+  }
+
   return {
     document,
     reviews,
@@ -259,6 +323,10 @@ export function useSarifReviewController(): SarifReviewController {
     validationError,
     feedback,
     dirty,
+    reviewer,
+    reviewerDraft,
+    reviewerDialogOpen,
+    reviewerError,
     sourcePrompt,
     openSARIF,
     chooseSourceFolder,
@@ -277,6 +345,10 @@ export function useSarifReviewController(): SarifReviewController {
     setPage,
     setValidationError,
     setSourcePrompt,
+    setReviewerDraft,
+    confirmReviewer,
+    editReviewer,
+    cancelReviewerEdit,
     dismissFeedback: () => setFeedback(null),
   }
 }

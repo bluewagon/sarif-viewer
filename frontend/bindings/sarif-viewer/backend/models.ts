@@ -51,6 +51,7 @@ export interface FindingReview {
     "severity": string;
     "disposition": string;
     "comment": string;
+    "reviewer": string;
     "reviewedAt": string;
 }
 

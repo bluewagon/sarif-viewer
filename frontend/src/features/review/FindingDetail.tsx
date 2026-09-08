@@ -3,6 +3,7 @@ import {icons} from '../../components/icons'
 import {dispositions, locationLabel, severities, titleCase, type Draft} from './model'
 import {CodeFlowTrace} from './CodeFlowTrace'
 import {SnippetView} from './SnippetView'
+import './reviewControls.css'
 
 interface FindingDetailProps {
   finding: FindingDTO

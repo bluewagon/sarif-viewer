@@ -15,7 +15,7 @@ var validDispositions = map[string]bool{
 	"unreviewed": true, "confirmed": true, "false-positive": true,
 }
 
-const reviewMetadataKey = "sarif-viewer"
+const reviewMetadataKey = "threathound/reviewStatus"
 
 func reviewValues(result, rule map[string]any, level string) (string, string, string, string) {
 	metadata, _ := objectValue(nestedValue(result, "properties", reviewMetadataKey))
@@ -26,11 +26,11 @@ func reviewValues(result, rule map[string]any, level string) (string, string, st
 	if severity == "" {
 		severity = severityFromLevel(level)
 	}
-	disposition := firstString(metadata["disposition"])
+	disposition := firstString(metadata["status"])
 	if !validDispositions[disposition] {
 		disposition = "unreviewed"
 	}
-	return severity, disposition, firstString(metadata["comment"]), firstString(metadata["reviewedAt"])
+	return severity, disposition, firstString(metadata["rationale"]), firstString(metadata["reviewedAt"])
 }
 
 func severityFromScore(value any) string {
@@ -118,7 +118,8 @@ func mergeReviewMetadata(result map[string]any, review FindingReview) {
 		properties[reviewMetadataKey] = metadata
 	}
 	metadata["severity"] = review.Severity
-	metadata["disposition"] = review.Disposition
-	metadata["comment"] = review.Comment
+	metadata["status"] = review.Disposition
+	metadata["rationale"] = review.Comment
+	metadata["reviewer"] = review.Reviewer
 	metadata["reviewedAt"] = review.ReviewedAt
 }
